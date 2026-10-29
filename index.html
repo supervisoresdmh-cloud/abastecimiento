@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Abastecimiento MITT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fondo:#E5E8E6; --sup:#FFFFFF; --sup2:#F1F3F2; --tinta:#1C2930; --tinta2:#55656E; --linea:#C4CCC8;
+  --senal:#F2B300; --sobre-senal:#1C2930; --ok:#2C7648; --alerta:#B23F0D; --info:#2B5C84;
+  --barra:#1C2930; --sobre-barra:#EEF1EF; --barra2:#9FB0B8;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --fondo:#12181B; --sup:#1B2328; --sup2:#222C32; --tinta:#E5EAE7; --tinta2:#9AA8AF; --linea:#33424A;
+    --senal:#F2B300; --sobre-senal:#1C2930; --ok:#5DB57F; --alerta:#F08A5B; --info:#82B2DB;
+    --barra:#0B1013; --sobre-barra:#E5EAE7; --barra2:#8496A0; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#12181B; --sup:#1B2328; --sup2:#222C32; --tinta:#E5EAE7; --tinta2:#9AA8AF; --linea:#33424A;
+  --senal:#F2B300; --sobre-senal:#1C2930; --ok:#5DB57F; --alerta:#F08A5B; --info:#82B2DB;
+  --barra:#0B1013; --sobre-barra:#E5EAE7; --barra2:#8496A0; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.cond{font-family:'Barlow Condensed','Arial Narrow',sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--senal);outline-offset:2px}
+img{max-width:100%}
+a{color:var(--info)}
+
+/* Login */
+.login{max-width:420px;margin:0 auto;padding:48px 22px}
+.marca-login{display:flex;align-items:center;gap:10px;color:var(--tinta2);font-weight:600}
+.placa{display:inline-block;background:var(--senal);color:var(--sobre-senal);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;padding:2px 9px;border-radius:3px;letter-spacing:.02em}
+.login h1{font-family:'Barlow Condensed',sans-serif;font-size:44px;line-height:1.02;margin:22px 0 10px;font-weight:700}
+.login .sub{color:var(--tinta2);margin:0 0 26px}
+.nota{color:var(--tinta2);font-size:14px;margin-top:18px}
+.error{background:color-mix(in srgb,var(--alerta) 12%,var(--sup));border-left:4px solid var(--alerta);padding:10px 12px;margin:0 0 16px}
+
+/* Formularios */
+label{display:block;font-weight:600;font-size:15px;margin:0 0 14px}
+label .opc{font-weight:400;color:var(--tinta2)}
+input,select,textarea{display:block;width:100%;margin-top:5px;padding:11px 12px;border:1px solid var(--linea);border-radius:4px;background:var(--sup);font-weight:400}
+textarea{min-height:84px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border:1px solid var(--linea);border-radius:4px;background:var(--sup);font-weight:600;text-decoration:none;color:var(--tinta);min-height:44px}
+.btn.primario{background:var(--senal);border-color:var(--senal);color:var(--sobre-senal)}
+.btn.peligro{color:var(--alerta);border-color:var(--alerta)}
+.btn.chico{min-height:36px;padding:6px 12px;font-size:15px}
+.btn[disabled]{opacity:.55;cursor:wait}
+.botones{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.ancho{width:100%}
+
+/* Barra superior */
+.barra{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--barra);color:var(--sobre-barra)}
+.barra-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.marca{display:flex;align-items:center;gap:10px;font-weight:600;white-space:nowrap}
+.barra select{width:auto;margin:0 0 0 auto;padding:7px 10px;background:transparent;color:var(--sobre-barra);border-color:#3D4E57;max-width:44vw}
+.barra select option{color:#1C2930}
+.usuario{background:none;border:0;color:var(--barra2);font-size:14px;white-space:nowrap;padding:6px 0}
+.usuario b{color:var(--sobre-barra);font-weight:600}
+.pestanas{max-width:1100px;margin:0 auto;display:flex;gap:2px;padding:0 10px;overflow-x:auto}
+.pestanas button{background:none;border:0;border-bottom:4px solid transparent;color:var(--barra2);padding:10px 10px 8px;font-weight:600;white-space:nowrap}
+.pestanas button[aria-selected="true"]{color:var(--sobre-barra);border-bottom-color:var(--senal)}
+.pestanas .n{display:inline-block;min-width:22px;margin-left:6px;padding:0 6px;border-radius:10px;background:#34454E;color:var(--sobre-barra);font-size:13px;text-align:center}
+.pestanas .n.alerta{background:var(--senal);color:var(--sobre-senal)}
+
+/* Contenido */
+.contenido{max-width:1100px;margin:0 auto;padding:18px 16px 110px}
+.herramientas{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.herramientas input[type=search]{flex:1;min-width:200px;margin:0}
+.check{display:flex;align-items:center;gap:8px;font-weight:500;margin:0;color:var(--tinta2)}
+.check input{width:auto;margin:0}
+.resumen{color:var(--tinta2);font-size:15px;margin:0 0 10px}
+.resumen b{color:var(--alerta)}
+
+/* Filas */
+.lista{border-top:1px solid var(--linea)}
+.fila{position:relative;display:grid;grid-template-columns:1fr auto;gap:2px 18px;width:100%;text-align:left;background:var(--sup);border:1px solid var(--linea);border-top:0;padding:12px 14px 13px 22px}
+.fila::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--linea)}
+.fila.porvencer::before{background:var(--senal)}
+.fila.vencida::before{width:10px;background:repeating-linear-gradient(-45deg,var(--senal) 0 6px,#1C2930 6px 12px)}
+.fila.cerrada{background:var(--sup2);color:var(--tinta2)}
+.fila:hover{background:var(--sup2)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.id{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.01em}
+.chip{display:inline-block;font-size:13px;line-height:1.5;padding:0 7px;border:1px solid var(--linea);border-radius:3px;color:var(--tinta2)}
+.chip.critica{background:var(--alerta);border-color:var(--alerta);color:#fff}
+.chip.alta{border-color:var(--alerta);color:var(--alerta)}
+.chip.firmado{border-color:var(--ok);color:var(--ok)}
+.chip.ejemplo{background:var(--senal);border-color:var(--senal);color:var(--sobre-senal);font-weight:700}
+.ejemplo-txt,.aviso-caja{background:color-mix(in srgb,var(--senal) 18%,var(--sup));border-left:4px solid var(--senal);padding:10px 12px;margin-top:14px}
+.titulo{font-weight:600;font-size:17px;margin-top:2px}
+.estado-linea{color:var(--tinta2);font-size:15px}
+.estado-linea b{color:var(--tinta);font-weight:600}
+.dias{grid-row:1 / span 4;grid-column:2;align-self:center;text-align:right;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.95;min-width:64px}
+.dias small{display:block;font-family:'Barlow',sans-serif;font-size:12px;font-weight:500;color:var(--tinta2);margin-top:4px}
+.vencida .dias{color:var(--alerta)}
+
+/* Riel de estados */
+.riel{display:flex;gap:3px;margin-top:9px;max-width:420px}
+.riel i{flex:1;height:5px;background:var(--linea);border-radius:1px}
+.riel i.hecho{background:var(--tinta2)}
+.riel i.actual{background:var(--senal)}
+.riel i.observada{background:var(--info)}
+.riel i.cortada{background:var(--alerta)}
+.riel-grande{display:grid;gap:3px;margin:18px 0 6px}
+.riel-grande div{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--tinta2);line-height:1.15;min-width:0;overflow-wrap:anywhere}
+.riel-grande i{height:8px;background:var(--linea);border-radius:1px}
+.riel-grande .hecho i{background:var(--tinta2)}
+.riel-grande .actual i{background:var(--senal)}
+.riel-grande .actual{color:var(--tinta);font-weight:600}
+.riel-grande .observada i{background:var(--info)}
+.riel-grande .cortada i{background:var(--alerta)}
+
+.vacio{background:var(--sup);border:1px dashed var(--linea);padding:28px 22px;color:var(--tinta2)}
+.vacio b{color:var(--tinta);display:block;font-size:18px;margin-bottom:4px}
+.cargando{color:var(--tinta2);padding:24px 0}
+
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--senal);color:var(--sobre-senal);border:0;border-radius:4px;padding:14px 20px;font-weight:700;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+
+/* Hoja lateral */
+.hoja{position:fixed;inset:0;z-index:20;background:rgba(10,16,19,.5);display:flex;justify-content:flex-end}
+.hoja-in{width:min(680px,100%);height:100%;overflow-y:auto;background:var(--fondo);padding:calc(16px + env(safe-area-inset-top,0px)) 20px calc(40px + env(safe-area-inset-bottom,0px));animation:entra .18s ease-out}
+@keyframes entra{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.hoja-in{animation:none}}
+.cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.cerrar{background:none;border:1px solid var(--linea);border-radius:4px;width:40px;height:40px;font-size:22px;line-height:1;flex:none}
+.det-titulo{font-family:'Barlow Condensed',sans-serif;font-size:32px;line-height:1.05;margin:10px 0 6px;font-weight:700}
+.det-estado{margin:0;color:var(--tinta2)}
+.det-estado b{color:var(--tinta)}
+.alerta-txt{color:var(--alerta);font-weight:600}
+.aviso-txt{color:var(--tinta);font-weight:600}
+.bloque{background:var(--sup);border:1px solid var(--linea);padding:16px;margin-top:14px}
+.bloque h3{margin:0 0 10px;font-size:15px;font-weight:700}
+.bloque.turno{border-color:var(--senal);border-width:2px}
+.datos{display:grid;grid-template-columns:minmax(120px,38%) 1fr;gap:6px 14px;margin:0}
+.datos dt{color:var(--tinta2)}
+.datos dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.tabla{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--linea);vertical-align:top}
+th{color:var(--tinta2);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.galeria{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+.galeria a{display:block}
+.galeria img{display:block;width:180px;height:180px;object-fit:cover;border:1px solid var(--linea);border-radius:3px;background:var(--sup2)}
+.galeria.una img{width:auto;height:auto;max-height:360px}
+.creada{background:color-mix(in srgb,var(--ok) 14%,var(--sup));border-left:4px solid var(--ok);padding:12px 14px;margin-top:14px}
+.historial{list-style:none;margin:0;padding:0}
+.historial li{position:relative;padding:0 0 14px 18px;border-left:2px solid var(--linea);margin-left:4px}
+.historial li::before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--tinta2)}
+.historial li:last-child{border-left-color:transparent}
+.historial .h-quien{font-weight:600}
+.historial .h-cuando{color:var(--tinta2);font-size:13px}
+.historial .h-com{background:var(--sup2);padding:6px 10px;margin-top:4px;border-radius:3px}
+
+/* Nueva solicitud */
+.tipos{display:grid;gap:8px;margin:6px 0 16px}
+.tipo-op{display:flex;gap:12px;align-items:flex-start;background:var(--sup);border:1px solid var(--linea);border-radius:4px;padding:12px;margin:0;font-weight:400;cursor:pointer}
+.tipo-op input{width:auto;margin:3px 0 0}
+.tipo-op b{display:block;font-weight:700}
+.tipo-op span{color:var(--tinta2);font-size:14.5px}
+.tipo-op:has(input:checked){border-color:var(--senal);box-shadow:inset 0 0 0 1px var(--senal)}
+.segmento{display:flex;border:1px solid var(--linea);border-radius:4px;overflow:hidden;margin-top:5px}
+.segmento label{flex:1;margin:0;text-align:center;font-weight:600}
+.segmento input{position:absolute;opacity:0;width:1px;height:1px}
+.segmento span{display:block;padding:10px 6px;background:var(--sup);border-left:1px solid var(--linea)}
+.segmento label:first-child span{border-left:0}
+.segmento input:checked + span{background:var(--tinta);color:var(--fondo)}
+.segmento input:focus-visible + span{outline:3px solid var(--senal);outline-offset:-3px}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.item{display:grid;grid-template-columns:76px 96px 1fr 40px;gap:6px;margin-bottom:6px}
+.item input,.item select{margin:0}
+.quitar{border:1px solid var(--linea);background:var(--sup);border-radius:4px}
+.oculto{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.foto-campo{margin:0 0 16px}
+.foto-campo .btn{cursor:pointer}
+.foto-lista{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.foto-lista:empty{display:none}
+.foto-mini{position:relative}
+.foto-mini img{display:block;width:96px;height:96px;object-fit:cover;border:1px solid var(--linea);border-radius:4px;background:var(--sup2)}
+.foto-mini button{position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;border:1px solid var(--linea);background:var(--sup);font-size:17px;line-height:1;padding:0}
+.grupo-titulo{font-weight:600;font-size:15px;margin:4px 0 6px}
+
+/* Panel */
+.metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;border:1px solid var(--linea);background:var(--sup)}
+.metricas div{padding:16px;border-right:1px solid var(--linea);border-bottom:1px solid var(--linea);color:var(--tinta2);font-size:14.5px}
+.metricas .num{display:block;font-family:'Barlow Condensed',sans-serif;font-size:46px;font-weight:700;line-height:1;color:var(--tinta);margin-bottom:4px}
+.metricas .mal .num{color:var(--alerta)}
+.columnas{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.barra-h{display:grid;grid-template-columns:130px 1fr 32px;gap:10px;align-items:center;margin-bottom:7px;font-size:15px}
+.barra-h .b{height:12px;background:var(--sup2);border-radius:2px;overflow:hidden}
+.barra-h .b i{display:block;height:100%;background:var(--tinta2)}
+.barra-h .b i.v{background:var(--senal)}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--tinta);color:var(--fondo);padding:11px 16px;border-radius:4px;font-weight:500;max-width:min(92vw,520px);display:none}
+#toast.error{background:var(--alerta);color:#fff}
+
+@media (max-width:640px){
+  .marca span:last-child{display:none}
+  .dias{font-size:28px;min-width:52px}
+  .det-titulo{font-size:28px}
+  .dos{grid-template-columns:1fr}
+  .item{grid-template-columns:64px 84px 1fr 38px}
+  .riel-grande div span{font-size:11px}
+  .galeria img{width:calc(50vw - 40px);height:calc(50vw - 40px)}
+}
+</style>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1C2930">
+<script>window.API_URL = "https://script.google.com/macros/s/AKfycbw3H3OBNVIsB7d50aO3_AXEWvd2aFWULJqPqslrYE5fgu5gZnd4qoGLWGnGqQa7FkQF/exec";
+if ('serviceWorker' in navigator) window.addEventListener('load', function () {
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (r) { r.update(); }).catch(function () {});
+});</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var diagnosticado = false;
+  function caja() {
+    var box = document.getElementById('errorCarga');
+    if (!box) {
+      box = document.createElement('pre');
+      box.id = 'errorCarga';
+      box.style.cssText = 'white-space:pre-wrap;margin:16px;padding:14px;background:#FFF3EF;border-left:4px solid #B23F0D;color:#1C2930;font:13px/1.45 monospace';
+      document.body.appendChild(box);
+    }
+    return box;
+  }
+  function diagnosticar() {
+    if (diagnosticado) return;
+    diagnosticado = true;
+    var sc = document.getElementById('principal');
+    if (!sc) { caja().textContent += 'No se encontro el script principal.\n'; return; }
+    var texto = sc.text || sc.textContent || '';
+    var lineas = texto.split('\n');
+    caja().textContent += 'Script principal: ' + lineas.length + ' lineas, ' + texto.length + ' caracteres.\n';
+    try { new Function(texto); caja().textContent += 'new Function: sin error.\n'; }
+    catch (err) { caja().textContent += 'new Function: ' + err.message + '\n'; }
+    try {
+      var url = URL.createObjectURL(new Blob([texto], { type: 'text/javascript' }));
+      window.__diag = url;
+      var s2 = document.createElement('script');
+      s2.src = url;
+      document.body.appendChild(s2);
+    } catch (err) { caja().textContent += 'Blob no disponible: ' + err.message + '\n'; }
+  }
+  window.addEventListener('error', function (e) {
+    if (window.__diag && e.filename === window.__diag) {
+      var texto = document.getElementById('principal').text;
+      var l = texto.split('\n');
+      var n = e.lineno, c = e.colno;
+      var out = '\nUBICACION EXACTA: linea ' + n + ' del script, columna ' + c + '\n';
+      for (var i = Math.max(0, n - 3); i < Math.min(l.length, n + 1); i++) out += (i + 1) + ': ' + l[i].slice(0, 240) + '\n';
+      var lin = l[n - 1] || '';
+      var codigos = [];
+      for (var k = Math.max(0, c - 8); k < Math.min(lin.length, c + 8); k++) codigos.push(lin.charCodeAt(k));
+      out += 'Codigos alrededor de la columna: ' + codigos.join(' ') + '\n';
+      caja().textContent += out;
+      e.preventDefault();
+      return;
+    }
+    caja().textContent += 'Error al cargar la app: ' + e.message + '\nLinea ' + e.lineno + ', columna ' + e.colno + '\n';
+    setTimeout(diagnosticar, 50);
+  });
+})();
+</script>
+<script>
+/* Puente para la página de GitHub Pages (web/construir.js le agrega window.API_URL).
+   Imita google.script.run, pero llama a doPost de Apps Script por internet. Dentro de Apps Script no hace nada. */
+(function () {
+  if (!window.API_URL || (window.google && google.script)) return;
+  function llamar(fn, args, ok, fail) {
+    fetch(window.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: args }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j.ok) { if (ok) ok(j.data); } else if (fail) fail(new Error(j.error)); })
+      .catch(function () { if (fail) fail(new Error('Sin conexión con la planilla. Revisa tu señal e intenta de nuevo.')); });
+  }
+  function runner() {
+    var ok = null, fail = null, px;
+    px = new Proxy({}, { get: function (t, nombre) {
+      if (nombre === 'withSuccessHandler') return function (f) { ok = f; return px; };
+      if (nombre === 'withFailureHandler') return function (f) { fail = f; return px; };
+      return function () { llamar(nombre, Array.prototype.slice.call(arguments), ok, fail); };
+    } });
+    return px;
+  }
+  window.google = { script: { get run() { return runner(); } } };
+})();
+</script>
+<script id="principal">
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const ENT = { '&': '&' + 'amp;', '<': '&' + 'lt;', '>': '&' + 'gt;', '"': '&' + 'quot;', "'": '&' + '#39;' };
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ENT[c]);
+const EN_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+const TACTIL = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch(e){ return false; } })();
+function idDesdeUrl(){
+  return new Promise(res => {
+    try {
+      if (EN_GAS && google.script.url) google.script.url.getLocation(l => res((l && l.parameter && l.parameter.id) || ''));
+      else res(new URLSearchParams(location.search).get('id') || '');
+    } catch(e){ res(''); }
+  });
+}
+
+const almacen = {
+  m: {},
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return this.m[k] || null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){ this.m[k] = v; } },
+  del(k){ try { localStorage.removeItem(k); } catch(e){ delete this.m[k]; } }
+};
+
+// cache: solicitudes traídas del servidor. Las pestañas, la faena y la búsqueda filtran sobre esto sin volver a la planilla.
+const S = { token: almacen.get('abs_token'), boot: null, vista: 'pendientes', faena: almacen.get('abs_faena') || '',
+  texto: '', cerradas: false, pinTemporal: null, conteos: {}, detalle: null, recienCreada: null, cache: null, panelCache: null };
+const FRESCO_MS = 60000; // pasado este tiempo, al cambiar de pestaña se muestra lo que hay y se actualiza por detrás
+
+const CAMPOS = {
+  monto: { label: 'Monto cotizado (CLP neto)', tipo: 'text', modo: 'numeric' },
+  alternativa: { label: 'Ítems de la alternativa', items: true },
+  monto_alternativa: { label: 'Monto total de la alternativa (CLP neto)', tipo: 'text', modo: 'numeric' },
+  proveedor_alternativa: { label: 'Proveedor de la alternativa' },
+  proveedor: { label: 'Proveedor' },
+  precios: { label: 'Precio unitario por ítem (CLP neto)', precios: true },
+  cotizacion_archivo: { label: 'Archivo de la cotización (PDF, foto, Excel o Word)', archivo: true, docs: true },
+  cotizacion_url: { label: 'Link a la cotización', ph: 'Drive o correo' },
+  n_emergente: { label: 'N° de emergente o levantamiento' },
+  entregado_a: { label: 'Entregado a', ph: 'Nombre de quien recibe' },
+  respaldo: { label: 'Documento firmado por el cliente (PDF o foto)', archivo: true },
+  respaldo_entrega: { label: 'Respaldo de entrega (foto de la guía firmada o PDF)', archivo: true },
+  comentario: { label: 'Comentario', area: true }
+};
+const UNIDADES = ['un','par','caja','saco','rollo','m','lt','kg','juego','galón','bidón'];
+// Mismos tipos que acepta guardarArchivo_ en el servidor (EXT_DOCUMENTO)
+const TIPOS_DOCUMENTO = ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+const ACEPTA_DOCS = 'image/*,.pdf,.xlsx,.xls,.docx,.doc,' + TIPOS_DOCUMENTO.join(',');
+const TIPO_INFO = {
+  EMERGENTE: 'Materiales de un trabajo emergente para el cliente. Pasa por primera aprobación (ADC o jefatura de construcción), jefatura de contrato si supera {UMBRAL}, y la firma del cliente.',
+  COMPRA: 'Herramientas, repuestos o equipos para MITT (ej. una gata para camioneta). Se cotiza, la aprueba el ADC o la jefatura de construcción y, si supera {UMBRAL}, también la jefatura de contrato.',
+  BODEGA: 'Algo que ya debería estar en bodega o en Casa MITT.'
+};
+const maxFotos = () => (S.boot && S.boot.maxFotos) || 3;
+const fotosDe = s => (s.fotos && s.fotos.length) ? s.fotos : (s.foto_url ? String(s.foto_url).split(/\s*\n\s*/).filter(Boolean) : []);
+
+/* ---------- Comunicación ---------- */
+function api(fn, ...args){
+  if (!EN_GAS) return new Promise((res, rej) => setTimeout(() => {
+    try { res(JSON.parse(JSON.stringify(DEMO[fn](...args)))); } catch(e){ rej(e); }
+  }, 160));
+  return new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args));
+}
+async function llamar(fn, ...args){
+  try { return await api(fn, ...args); }
+  catch(e){
+    const m = String((e && e.message) || e).replace(/^Error:\s*/, '');
+    if (m.indexOf('CAMBIAR_PIN') >= 0){ cerrarHoja(); pintarCambioPin(); }
+    else if (m.indexOf('SESION_EXPIRADA') >= 0){
+      almacen.del('abs_token'); S.token = null; S.cache = null; S.panelCache = null; cerrarHoja(); pintarLogin('Tu sesión expiró. Ingresa de nuevo.');
+    } else aviso(m, true);
+    throw e;
+  }
+}
+let tToast;
+function aviso(msg, error){
+  const t = $('#toast'); t.textContent = msg; t.className = error ? 'error' : ''; t.style.display = 'block';
+  clearTimeout(tToast); tToast = setTimeout(() => t.style.display = 'none', error ? 6000 : 3000);
+}
+
+/* ---------- Formatos ---------- */
+const fmtFecha = iso => { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('es-CL', { day:'numeric', month:'short' }) + ' ' + d.toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' }); };
+const fmtDia = iso => iso ? new Date(iso).toLocaleDateString('es-CL', { weekday:'short', day:'numeric', month:'short' }) : '';
+const fmtCLP = v => v === '' || v == null ? '' : '$' + Number(v).toLocaleString('es-CL');
+const nomEstado = e => (S.boot && S.boot.estados[e]) || e;
+const esCerrada = s => S.boot.cerrados.indexOf(s.estado) >= 0;
+const plural = (n, a, b) => n + ' ' + (n === 1 ? a : b);
+const fmtHoras = h => { h = Math.abs(Math.round(h || 0)); return h < 1 ? 'menos de 1 h' : h < 48 ? h + ' h' : Math.floor(h / 24) + ' días'; };
+
+/* ---------- RUT ---------- */
+function normRut(v){ const s = String(v || '').toUpperCase().replace(/[^0-9K]/g, ''); return s.length < 2 ? '' : s.slice(0, -1).replace(/^0+/, '') + '-' + s.slice(-1); }
+function rutValido(v){
+  const m = /^(\d{7,8})-([\dK])$/.exec(normRut(v)); if (!m) return false;
+  let s = 0, k = 2; for (let i = m[1].length - 1; i >= 0; i--){ s += +m[1][i] * k; k = k === 7 ? 2 : k + 1; }
+  const r = 11 - (s % 11); return (r === 11 ? '0' : r === 10 ? 'K' : String(r)) === m[2];
+}
+function fmtRut(v){
+  const s = String(v || '').toUpperCase().replace(/[^0-9K]/g, '').slice(0, 9); if (s.length < 2) return s;
+  return s.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + s.slice(-1);
+}
+function campoRut(input){ input.addEventListener('input', () => { input.value = fmtRut(input.value); }); }
+
+/* ---------- Login ---------- */
+function pintarLogin(msg){
+  $('#app').innerHTML = `
+  <main class="login">
+    <div class="marca-login"><span class="placa">MITT</span> Abastecimiento</div>
+    <h1>Solicitudes de materiales</h1>
+    <p class="sub">Cada pedido con responsable, estado y plazo. Entra con tu RUT y tu PIN.</p>
+    ${msg ? `<p class="error">${esc(msg)}</p>` : ''}
+    <form id="fLogin">
+      <label>RUT<input name="rut" inputmode="text" autocomplete="username" required placeholder="12.345.678-9" autocapitalize="characters"></label>
+      <label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="8"></label>
+      <button class="btn primario ancho" type="submit">Ingresar</button>
+    </form>
+    <div class="botones" style="margin-top:14px"><button class="btn ancho" id="btnRegistro" type="button">Solicitar acceso</button></div>
+    <p class="nota">${EN_GAS ? '¿Olvidaste tu PIN? Pide al administrador que lo restablezca; te dará uno temporal.' : 'Vista de demostración: usa cualquier RUT válido y cualquier PIN. Entras como administrador con datos de ejemplo.'}</p>
+  </main>`;
+  campoRut($('[name=rut]'));
+  $('#btnRegistro').addEventListener('click', pintarRegistro);
+  $('#fLogin').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const f = new FormData(ev.target), b = ev.target.querySelector('button');
+    if (!rutValido(f.get('rut'))){ aviso('El RUT no es válido. Revisa el dígito verificador.', true); return; }
+    b.disabled = true;
+    try {
+      const r = await llamar('login', normRut(f.get('rut')), f.get('pin'));
+      S.token = r.token; almacen.set('abs_token', r.token);
+      if (r.cambiarPin){ S.pinTemporal = f.get('pin'); pintarCambioPin(); } else await arrancar();
+    } catch(e){ b.disabled = false; }
+  });
+}
+
+async function pintarRegistro(){
+  $('#app').innerHTML = '<main class="login"><p class="cargando">Cargando…</p></main>';
+  let faenas = [];
+  let contratos = [];
+  try { faenas = await api('faenasPublicas'); contratos = await api('contratosPublicos'); } catch(e){}
+  $('#app').innerHTML = `
+  <main class="login">
+    <div class="marca-login"><span class="placa">MITT</span> Abastecimiento</div>
+    <h1>Solicitar acceso</h1>
+    <p class="sub">Tu solicitud queda pendiente hasta que el administrador la apruebe. El PIN lo eliges tú y nadie más lo conoce.</p>
+    <form id="fReg">
+      <label>RUT<input name="rut" required placeholder="12.345.678-9" autocapitalize="characters"></label>
+      <label>Nombre y apellido<input name="nombre" required autocomplete="name"></label>
+      <label>Celular<input name="telefono" inputmode="tel" required autocomplete="tel" placeholder="9 1234 5678"></label>
+      <label>Correo <span class="opc">(opcional, para recibir avisos)</span><input name="email" type="email" autocomplete="email"></label>
+      <label>Faena<select name="faena" id="rFaena" required>${faenas.map(f => `<option value="${esc(f.codigo)}">${esc(f.codigo)} ${esc(f.nombre)}</option>`).join('')}</select></label>
+      <label>Contrato en que trabajas<select name="contrato" id="rContrato"></select></label>
+      <div class="dos">
+        <label>PIN <span class="opc">(4 a 8 números)</span><input name="pin" type="password" inputmode="numeric" maxlength="8" required autocomplete="new-password"></label>
+        <label>Repite el PIN<input name="pin2" type="password" inputmode="numeric" maxlength="8" required autocomplete="new-password"></label>
+      </div>
+      <button class="btn primario ancho" type="submit">Enviar solicitud</button>
+    </form>
+    <div class="botones" style="margin-top:14px"><button class="btn ancho" id="btnVolver" type="button">Volver</button></div>
+  </main>`;
+  campoRut($('[name=rut]'));
+  const llenarRC = () => {
+    const f = $('#rFaena').value;
+    const cs = contratos.filter(c => c.faenas.indexOf('TODAS') >= 0 || c.faenas.indexOf(f) >= 0);
+    $('#rContrato').innerHTML = cs.map(c => `<option value="${esc(c.codigo)}">${esc(c.nombre)}</option>`).join('') + '<option value="">No aplica (expeditor, jefatura, bodega)</option>';
+  };
+  $('#rFaena').addEventListener('change', llenarRC); llenarRC();
+  $('#btnVolver').addEventListener('click', () => pintarLogin());
+  $('#fReg').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const d = Object.fromEntries(new FormData(ev.target).entries()), b = ev.target.querySelector('button[type=submit]');
+    if (!rutValido(d.rut)){ aviso('El RUT no es válido. Revisa el dígito verificador.', true); return; }
+    if (d.pin !== d.pin2){ aviso('Los PIN no coinciden.', true); return; }
+    d.rut = normRut(d.rut); delete d.pin2;
+    b.disabled = true;
+    try {
+      await llamar('solicitarAcceso', d);
+      $('#app').innerHTML = `<main class="login"><div class="marca-login"><span class="placa">MITT</span> Abastecimiento</div>
+        <h1>Solicitud enviada</h1><p class="sub">Cuando el administrador apruebe tu acceso podrás entrar con tu RUT y el PIN que elegiste.</p>
+        <button class="btn primario ancho" id="btnIr">Volver al ingreso</button></main>`;
+      $('#btnIr').addEventListener('click', () => pintarLogin());
+    } catch(e){ b.disabled = false; }
+  });
+}
+
+function formPinHTML(conActual){
+  return `<form id="fPin">
+    ${conActual ? '<label>PIN actual<input name="actual" type="password" inputmode="numeric" maxlength="8" required autocomplete="current-password"></label>' : ''}
+    <div class="dos">
+      <label>PIN nuevo <span class="opc">(4 a 8 números)</span><input name="nuevo" type="password" inputmode="numeric" maxlength="8" required autocomplete="new-password"></label>
+      <label>Repite el PIN nuevo<input name="nuevo2" type="password" inputmode="numeric" maxlength="8" required autocomplete="new-password"></label>
+    </div>
+    <button class="btn primario" type="submit">Guardar PIN</button>
+  </form>`;
+}
+function conectarFormPin(raiz, alTerminar){
+  $('#fPin', raiz).addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const d = Object.fromEntries(new FormData(ev.target).entries()), b = ev.target.querySelector('button');
+    if (d.nuevo !== d.nuevo2){ aviso('Los PIN nuevos no coinciden.', true); return; }
+    b.disabled = true;
+    try { await llamar('cambiarPin', S.token, d.actual || S.pinTemporal, d.nuevo); S.pinTemporal = null; aviso('PIN actualizado'); alTerminar(); }
+    catch(e){ b.disabled = false; }
+  });
+}
+function pintarCambioPin(){
+  $('#app').innerHTML = `<main class="login"><div class="marca-login"><span class="placa">MITT</span> Abastecimiento</div>
+    <h1>Crea tu PIN</h1><p class="sub">Entraste con un PIN temporal. Elige uno propio que solo tú conozcas; no puede ser obvio como 1234 o 0000.</p>
+    ${formPinHTML(!S.pinTemporal)}</main>`;
+  conectarFormPin($('#app'), arrancar);
+}
+function pintarCuenta(){
+  const u = S.boot.usuario;
+  const inn = pintarHoja(`
+    <div class="cab"><h2 class="det-titulo" style="margin:0">Tu cuenta</h2><button class="cerrar" aria-label="Cerrar">×</button></div>
+    <section class="bloque"><dl class="datos">
+      <dt>Nombre</dt><dd>${esc(u.nombre)}</dd><dt>RUT</dt><dd>${esc(fmtRut(u.id))}</dd>
+      <dt>Roles</dt><dd>${esc(u.roles.map(r => r.charAt(0) + r.slice(1).toLowerCase()).join(', '))}</dd>
+      <dt>Faenas</dt><dd>${esc(S.boot.faenas.map(f => f.codigo).join(', '))}</dd></dl></section>
+    <section class="bloque"><h3>Cambiar PIN</h3>${formPinHTML(true)}</section>
+    <div class="botones" style="margin-top:14px"><button class="btn peligro" id="btnSalirC">Cerrar sesión</button></div>`);
+  conectarFormPin(inn, cerrarHoja);
+  $('#btnSalirC', inn).addEventListener('click', async () => { try { await api('salir', S.token); } catch(e){} almacen.del('abs_token'); S.token = null; S.cache = null; S.panelCache = null; cerrarHoja(); pintarLogin(); });
+}
+
+/* ---------- Arranque ---------- */
+async function arrancar(){
+  if (!S.token) return pintarLogin();
+  S.cache = null; S.panelCache = null;
+  try { S.boot = await llamar('bootstrap', S.token); } catch(e){ return; }
+  if (S.faena && !S.boot.faenas.some(f => f.codigo === S.faena)) S.faena = '';
+  pintarApp();
+  await cargar();
+  const idIni = await idDesdeUrl();
+  if (idIni) abrir(idIni);
+}
+
+function pintarApp(){
+  const b = S.boot;
+  $('#app').innerHTML = `
+  <header class="barra">
+    <div class="barra-in">
+      <div class="marca"><span class="placa">MITT</span><span>Abastecimiento</span></div>
+      <select id="selFaena" aria-label="Faena">
+        <option value="">Todas mis faenas</option>
+        ${b.faenas.map(f => `<option value="${esc(f.codigo)}" ${S.faena === f.codigo ? 'selected' : ''}>${esc(f.codigo)} ${esc(f.nombre)}</option>`).join('')}
+      </select>
+      <button class="usuario" id="btnCuenta" title="Tu cuenta"><b>${esc(b.usuario.nombre.split(' ')[0])}</b> Cuenta</button>
+    </div>
+    <nav class="pestanas" role="tablist" id="pestanas"></nav>
+  </header>
+  <main class="contenido" id="vista"></main>
+  <button class="fab" id="btnNueva">Nueva solicitud</button>`;
+  $('#selFaena').addEventListener('change', e => { S.faena = e.target.value; almacen.set('abs_faena', S.faena); cargar(); });
+  $('#btnCuenta').addEventListener('click', pintarCuenta);
+  $('#btnNueva').addEventListener('click', () => pintarNueva());
+  pintarPestanas();
+}
+
+function tieneEquipo(){ const u = S.boot && S.boot.usuario; return !!(u && u.contratos && u.contratos.length && u.roles.indexOf('SOLICITANTE') >= 0); }
+function pintarPestanas(){
+  const c = S.conteos || {};
+  const tabs = [
+    ['pendientes', 'Mis pendientes', c.pendientes, true],
+    ['mias', tieneEquipo() ? 'Mi contrato' : 'Mis solicitudes', c.mias, false],
+    ['todas', 'Todas', c.vencidas, 'v'],
+    ['panel', 'Panel', null, false]
+  ];
+  $('#pestanas').innerHTML = tabs.map(([k, t, n, al]) => `
+    <button role="tab" aria-selected="${S.vista === k}" data-v="${k}">${t}${n ? `<span class="n ${al ? 'alerta' : ''}">${al === 'v' ? plural(n, 'vencida', 'vencidas') : n}</span>` : ''}</button>`).join('');
+  $$('#pestanas button').forEach(b => b.addEventListener('click', () => { if (S.vista === b.dataset.v) return; S.vista = b.dataset.v; pintarPestanas(); cargar(); }));
+}
+
+/* ---------- Listas ---------- */
+// Se trae TODO lo visible una sola vez; cambiar de pestaña, de faena o buscar filtra en el navegador (instantáneo).
+// Se vuelve a la planilla solo con "Actualizar", después de una acción, al marcar "Incluir cerradas" o si los datos tienen más de 1 minuto.
+let enCurso = null;
+function marcarActualizando(on){
+  const b = $('#btnRecargar'); if (!b) return;
+  b.disabled = on; b.textContent = on ? 'Actualizando…' : 'Actualizar';
+}
+function traerLista(){
+  if (enCurso) return enCurso;
+  const conCerradas = S.cerradas;
+  marcarActualizando(true);
+  enCurso = llamar('listar', S.token, { vista: 'todas', incluirCerradas: conCerradas })
+    .then(r => { S.cache = { items: r.items, cerradas: conCerradas, t: Date.now() }; return S.cache; })
+    .finally(() => { enCurso = null; marcarActualizando(false); });
+  return enCurso;
+}
+function filtrarCache(){
+  let todos = S.cache.items;
+  if (S.faena) todos = todos.filter(s => s.faena === S.faena);
+  const abiertas = todos.filter(s => !esCerrada(s));
+  S.conteos = {
+    pendientes: abiertas.filter(s => s.meToca).length,
+    mias: abiertas.filter(s => s.esMia).length,
+    vencidas: abiertas.filter(s => s.vencida).length
+  };
+  let items = S.cerradas ? todos : abiertas;
+  if (S.vista === 'pendientes') items = abiertas.filter(s => s.meToca);
+  if (S.vista === 'mias') items = items.filter(s => s.esMia);
+  if (S.texto){
+    const q = S.texto.toLowerCase();
+    items = items.filter(s => (s.id + ' ' + s.titulo + ' ' + s.area + ' ' + s.solicitante + ' ' + s.responsable + ' ' + s.contrato).toLowerCase().indexOf(q) >= 0);
+  }
+  return items;
+}
+async function cargar(forzar){
+  const v = $('#vista'); if (!v) return;
+  if (forzar) S.panelCache = null;
+  if (S.vista === 'panel') return pintarPanel();
+  const faltan = !S.cache || (S.cerradas && !S.cache.cerradas);
+  if (!faltan){
+    pintarLista();
+    if (forzar || Date.now() - S.cache.t > FRESCO_MS) refrescar();
+    return;
+  }
+  if (!S.cache) v.innerHTML = '<p class="cargando">Cargando solicitudes…</p>';
+  else pintarLista();
+  try {
+    await traerLista();
+    if (S.cerradas && !S.cache.cerradas){ await traerLista(); }
+  } catch(e){ return; }
+  if (S.vista !== 'panel') pintarLista();
+}
+async function refrescar(){
+  try { await traerLista(); } catch(e){ return; }
+  if (S.vista !== 'panel') pintarLista();
+}
+// Reemplaza en la cache la solicitud que viene de una acción, para que la lista quede al día sin esperar al servidor
+function actualizarEnCache(s){
+  if (!S.cache || !s || !s.id) return;
+  const copia = Object.assign({}, s); delete copia.historial;
+  const i = S.cache.items.findIndex(x => x.id === s.id);
+  if (i >= 0) S.cache.items[i] = copia; else S.cache.items.unshift(copia);
+}
+function pintarLista(){
+  const v = $('#vista'); if (!v || !S.cache || S.vista === 'panel') return;
+  let herr = $('#herr', v);
+  if (!herr || herr.dataset.v !== S.vista){
+    v.innerHTML = `
+    <div class="herramientas" id="herr" data-v="${S.vista}">
+      <input type="search" id="buscar" placeholder="Buscar por ID, equipo, material o persona" value="${esc(S.texto)}" aria-label="Buscar">
+      ${S.vista !== 'pendientes' ? `<label class="check"><input type="checkbox" id="chkCerradas" ${S.cerradas ? 'checked' : ''}> Incluir cerradas</label>` : ''}
+      <button class="btn chico" id="btnRecargar">Actualizar</button>
+    </div>
+    <div id="resultado"></div>`;
+    let tb;
+    $('#buscar', v).addEventListener('input', e => { clearTimeout(tb); tb = setTimeout(() => { S.texto = e.target.value.trim(); pintarLista(); }, 120); });
+    const ch = $('#chkCerradas', v); if (ch) ch.addEventListener('change', e => { S.cerradas = e.target.checked; cargar(); });
+    $('#btnRecargar', v).addEventListener('click', () => cargar(true));
+    $('#resultado', v).addEventListener('click', e => { const f = e.target.closest('.fila'); if (f) abrir(f.dataset.id); });
+  }
+  const items = filtrarCache();
+  pintarPestanas();
+  const venc = items.filter(s => s.vencida).length;
+  const prox = items.filter(s => s.por_vencer).length;
+  $('#resultado', v).innerHTML = `
+    ${items.length ? `<p class="resumen">${plural(items.length, 'solicitud', 'solicitudes')}${venc ? `, <b>${venc} fuera de plazo</b>` : ''}${prox ? `, ${prox} por vencer` : ''}</p>` : ''}
+    <div class="lista">${items.length ? items.map(filaHTML).join('') : vacioHTML()}</div>`;
+  marcarActualizando(!!enCurso);
+}
+// Al volver a la app después de un rato, se actualiza sola
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && S.token && S.boot && S.cache && Date.now() - S.cache.t > FRESCO_MS && $('#vista')) cargar(true);
+});
+
+function vacioHTML(){
+  if (S.texto) return `<div class="vacio"><b>Sin resultados para “${esc(S.texto)}”.</b>Prueba con el ID, el equipo o el nombre del material.</div>`;
+  if (S.vista === 'pendientes') return '<div class="vacio"><b>No tienes nada pendiente.</b>Cuando una solicitud quede en tus manos para cotizar, firmar, comprar, entregar o confirmar, aparece aquí.</div>';
+  if (S.vista === 'mias' && tieneEquipo()) return '<div class="vacio"><b>Tu contrato no tiene solicitudes abiertas.</b>Aquí aparecen todas las solicitudes de ' + esc(S.boot.usuario.contratos.join(', ')) + ', las hayas creado tú o otro supervisor.</div>';
+  if (S.vista === 'mias') return '<div class="vacio"><b>No tienes solicitudes abiertas.</b>Usa “Nueva solicitud” para registrar un pedido con su responsable y plazo.</div>';
+  return '<div class="vacio"><b>No hay solicitudes abiertas.</b>Todo lo pedido en esta faena está cerrado.</div>';
+}
+
+const RIEL_CORTO = { POR_VALIDAR: '1ª aprobación', POR_AUTORIZAR: 'Jefatura', POR_APROBAR: 'Firma cliente', RECIBIDA: 'Recibida' };
+function rutaPara(s){ return s.ruta || S.boot.rutas[s.tipo] || []; }
+function posicionRiel(s){
+  const r = rutaPara(s); let i = r.indexOf(s.estado), marca = 'actual';
+  if (s.estado === 'OBSERVADA' || s.estado === 'POR_ACEPTAR'){ i = r.indexOf(s.estado_previo || 'SOLICITADA'); marca = 'observada'; }
+  if (s.estado === 'RECHAZADA'){ i = r.indexOf(s.estado_previo); if (i < 0) i = Math.max(r.indexOf('POR_APROBAR'), r.indexOf('POR_AUTORIZAR'), r.indexOf('POR_VALIDAR')); marca = 'cortada'; }
+  if (s.estado === 'ANULADA'){ i = -1; }
+  if (s.estado === 'RECIBIDA') marca = 'hecho';
+  return { r, i, marca };
+}
+function rielHTML(s){
+  const { r, i, marca } = posicionRiel(s);
+  return `<div class="riel" aria-hidden="true">${r.map((e, k) => `<i class="${k < i ? 'hecho' : k === i ? marca : ''}"></i>`).join('')}</div>`;
+}
+function rielGrandeHTML(s){
+  const { r, i, marca } = posicionRiel(s);
+  return `<div class="riel-grande" style="grid-template-columns:repeat(${r.length},minmax(0,1fr))">${r.map((e, k) => {
+    const c = k < i ? 'hecho' : k === i ? marca : '';
+    const etiqueta = k === i && s.estado === 'OBSERVADA' ? 'Falta información' : k === i && s.estado === 'POR_ACEPTAR' ? 'Alternativa por aceptar' : k === i && s.estado === 'RECHAZADA' ? 'Rechazada' : (RIEL_CORTO[e] || nomEstado(e));
+    return `<div class="${c}"><i></i><span>${esc(etiqueta)}</span></div>`;
+  }).join('')}</div>`;
+}
+function estadoLinea(s){
+  if (esCerrada(s)) return `${esc(nomEstado(s.estado))} en ${plural(s.dias_totales, 'día', 'días')}`;
+  return `${esc(nomEstado(s.estado))}. Pendiente por parte de <b>${esc(s.responsable || 'sin asignar')}</b>`;
+}
+function chipsHTML(s){
+  return `<span class="id">${esc(s.id)}</span>
+    ${s.demo ? '<span class="chip ejemplo">EJEMPLO</span>' : ''}
+    <span class="chip">${esc(s.contrato)}</span>
+    <span class="chip">${esc(S.boot.tipos[s.tipo] || s.tipo)}</span>
+    ${s.respaldo_url ? '<span class="chip firmado">Firmado por cliente</span>' : ''}
+    ${s.prioridad === 'Crítica' ? '<span class="chip critica">Crítica</span>' : s.prioridad === 'Alta' ? '<span class="chip alta">Alta</span>' : ''}`;
+}
+function filaHTML(s){
+  const cerr = esCerrada(s);
+  const pie = s.vencida ? (s.fuera_de_fecha ? 'pasó la fecha' : 'fuera de plazo') : s.por_vencer ? 'vence en ' + fmtHoras(s.horas_para_vencer) : 'en este paso';
+  const dias = cerr ? `${s.dias_totales}d<small>en total</small>` : `${s.dias_en_estado}d<small>${pie}</small>`;
+  return `<button class="fila ${s.vencida ? 'vencida' : s.por_vencer ? 'porvencer' : ''} ${cerr ? 'cerrada' : ''}" data-id="${esc(s.id)}">
+    <div class="meta">${chipsHTML(s)}</div>
+    <div class="titulo">${esc(s.titulo)}${s.area ? ` <span class="estado-linea">(${esc(s.area)})</span>` : ''}</div>
+    <div class="estado-linea">${estadoLinea(s)}</div>
+    ${rielHTML(s)}
+    <div class="dias">${dias}</div>
+  </button>`;
+}
+
+/* ---------- Hoja lateral ---------- */
+function pintarHoja(html){
+  let h = $('#hoja');
+  if (!h){
+    h = document.createElement('div'); h.id = 'hoja'; h.className = 'hoja';
+    h.innerHTML = '<div class="hoja-in" role="dialog" aria-modal="true"></div>';
+    h.addEventListener('click', e => { if (e.target === h) cerrarHoja(); });
+    document.body.appendChild(h); document.body.style.overflow = 'hidden';
+  }
+  const inn = h.querySelector('.hoja-in'); inn.innerHTML = html; inn.scrollTop = 0;
+  $$('.cerrar', inn).forEach(b => b.addEventListener('click', cerrarHoja));
+  return inn;
+}
+function cerrarHoja(){ const h = $('#hoja'); if (h){ h.remove(); document.body.style.overflow = ''; } S.detalle = null; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarHoja(); });
+
+async function abrir(id){
+  pintarHoja(`<div class="cab"><span class="id">${esc(id)}</span><button class="cerrar" aria-label="Cerrar">×</button></div><p class="cargando">Cargando…</p>`);
+  try { S.detalle = await llamar('obtener', S.token, id); pintarDetalle(S.detalle); } catch(e){ cerrarHoja(); }
+}
+
+function waLink(s){
+  const base = S.boot.urlApp || location.href.split('?')[0];
+  const t = `*${s.id}* ${s.titulo}\nEstado: ${nomEstado(s.estado)}${s.responsable ? '\nPendiente por parte de: ' + s.responsable : ''}\n${base}?id=${encodeURIComponent(s.id)}`;
+  return 'https://wa.me/?text=' + encodeURIComponent(t);
+}
+
+function galeriaHTML(s){
+  const fs = fotosDe(s);
+  if (!fs.length) return '';
+  return `<div class="galeria ${fs.length === 1 ? 'una' : ''}">${fs.map((u, k) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Foto ${k + 1} de ${esc(s.titulo)}" loading="lazy"></a>`).join('')}</div>`;
+}
+
+function pintarDetalle(s){
+  const cerr = esCerrada(s);
+  const compra = [
+    ['Monto cotizado', fmtCLP(s.monto)], ['Proveedor', s.proveedor],
+    ['Archivo de cotización', s.cotizacion_archivo ? `<a href="${esc(s.cotizacion_archivo)}" target="_blank" rel="noopener">Ver cotización del proveedor</a>` : '', true],
+    ['Link de cotización', s.cotizacion_url ? (/^https?:/i.test(s.cotizacion_url) ? `<a href="${esc(s.cotizacion_url)}" target="_blank" rel="noopener">Abrir link</a>` : esc(s.cotizacion_url)) : '', true],
+    ['N° emergente', s.n_emergente],
+    ['Respaldo firmado', s.respaldo_url ? `<a href="${esc(s.respaldo_url)}" target="_blank" rel="noopener">Ver documento firmado</a>` : '', true],
+    ['Primera aprobación', s.validado_por],
+    ['Autorizó jefatura', s.autorizado_por],
+    [s.tipo === 'EMERGENTE' ? 'Respaldo cargado por' : 'Autorizó', s.aprobado_por], ['Compró', s.comprado_por],
+    ['Entregado a', s.entregado_a],
+    ['Respaldo de entrega', s.entrega_url ? `<a href="${esc(s.entrega_url)}" target="_blank" rel="noopener">Ver guía o foto de entrega</a>` : '', true],
+    ['Recibió conforme', s.recibido_por]
+  ].filter(x => x[1]);
+  const acc = s.acciones || [];
+  const inn = pintarHoja(`
+    <div class="cab"><div class="meta">${chipsHTML(s)}<span class="chip">${esc(s.faena)}</span></div><button class="cerrar" aria-label="Cerrar">×</button></div>
+    <h2 class="det-titulo">${esc(s.titulo)}</h2>
+    <p class="det-estado">
+      ${cerr ? `<b>${esc(nomEstado(s.estado))}</b>. Duró ${plural(s.dias_totales, 'día', 'días')} desde que se pidió.`
+             : `<b>${esc(nomEstado(s.estado))}</b> ${s.dias_en_estado === 0 ? 'desde hoy' : 'hace ' + plural(s.dias_en_estado, 'día', 'días')}. Pendiente por parte de <b>${esc(s.responsable || 'sin asignar')}</b>.`}
+      ${s.vencida ? `<br><span class="alerta-txt">${s.fuera_de_fecha ? 'Ya pasó la fecha en que se necesitaba.' : `Fuera de plazo: este paso debía resolverse en ${plural(s.sla, 'día', 'días')}.`}</span>`
+        : s.por_vencer ? `<br><span class="aviso-txt">Vence en ${fmtHoras(s.horas_para_vencer)}.</span>` : ''}
+    </p>
+    ${s.demo ? '<p class="ejemplo-txt"><b>Solicitud de ejemplo</b> para la marcha blanca. No envía correos.</p>' : ''}
+    ${s.alternativa && !s.alternativa.items ? `<p class="aviso-caja">${esc(s.alternativa.aviso)}</p>` : ''}
+    ${s.alternativa && s.alternativa.items ? `<section class="bloque turno">
+        <h3>Alternativa propuesta por el comprador</h3>
+        <p class="aviso-caja" style="margin:0 0 12px">${esc(s.alternativa.aviso)}</p>
+        <div class="grupo-titulo">Se pidió</div>${tablaItemsHTML(s.items)}
+        <div class="grupo-titulo" style="margin-top:12px">Se propone</div>${tablaItemsHTML(s.alternativa.items)}
+        ${s.alternativa.monto || s.alternativa.proveedor ? `<dl class="datos" style="margin-top:12px">
+          ${s.alternativa.monto ? `<dt>Monto de la alternativa</dt><dd>${esc(fmtCLP(s.alternativa.monto))}</dd>${s.monto ? `<dt>Monto aprobado</dt><dd>${esc(fmtCLP(s.monto))}</dd>` : ''}` : ''}
+          ${s.alternativa.proveedor ? `<dt>Proveedor</dt><dd>${esc(s.alternativa.proveedor)}</dd>` : ''}</dl>` : ''}
+      </section>` : ''}
+    ${rielGrandeHTML(s)}
+    ${S.recienCreada === s.id ? `<div class="creada"><b>Solicitud creada.</b> Avisa al grupo para que quede a la vista; el link lleva directo a esta ficha.<div class="botones"><a class="btn primario" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div></div>` : ''}
+    ${acc.length || s.puedeEditar ? `<section class="bloque ${acc.some(a => a.codigo !== 'ANULAR') ? 'turno' : ''}">
+        <h3>${acc.some(a => a.codigo !== 'ANULAR') ? 'Pendiente de tu acción' : 'Opciones'}</h3>
+        <div class="botones">${acc.map((a, k) => `<button class="btn ${a.peligro ? 'peligro' : (k === 0 && a.codigo !== 'RETROCEDER' ? 'primario' : '')}" data-acc="${k}">${esc(a.etiqueta)}</button>`).join('')}${s.puedeEditar ? '<button class="btn" id="btnEditar">Editar solicitud</button>' : ''}</div>
+        <div id="accForm"></div>
+      </section>` : ''}
+    <section class="bloque">
+      <h3>Qué se pide</h3>
+      ${tablaItemsHTML(s.items)}
+    </section>
+    <section class="bloque">
+      <h3>Contexto</h3>
+      <dl class="datos">
+        <dt>Para qué y qué pasa si no llega</dt><dd>${esc(s.motivo)}</dd>
+        ${s.area ? `<dt>Equipo o área</dt><dd>${esc(s.area)}</dd>` : ''}
+        ${s.necesita_para ? `<dt>Se necesita para</dt><dd>${esc(fmtDia(s.necesita_para))}</dd>` : ''}
+        <dt>Pidió</dt><dd>${esc(s.solicitante)}, ${esc(fmtFecha(s.creada))}</dd>
+      </dl>
+      ${galeriaHTML(s)}
+    </section>
+    ${compra.length ? `<section class="bloque"><h3>Compra y entrega</h3><dl class="datos">${compra.map(x => `<dt>${x[0]}</dt><dd>${x[2] ? x[1] : esc(x[1])}</dd>`).join('')}</dl></section>` : ''}
+    <section class="bloque">
+      <h3>Historial</h3>
+      <ul class="historial">${(s.historial || []).map(h => `<li>
+        <div><span class="h-quien">${esc(h.usuario)}</span> ${esc(h.accion.charAt(0).toLowerCase() + h.accion.slice(1))}${h.a ? ` <span class="estado-linea">(${esc(nomEstado(h.a))})</span>` : ''}</div>
+        <div class="h-cuando">${esc(fmtFecha(h.fecha))}</div>
+        ${h.comentario ? `<div class="h-com">${esc(h.comentario)}</div>` : ''}</li>`).join('')}</ul>
+      <form id="fCom"><label>Agregar comentario<textarea name="t" placeholder="Ej: El proveedor confirma despacho el jueves" required></textarea></label>
+      <div class="botones"><button class="btn" type="submit">Comentar</button><a class="btn" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div></form>
+    </section>`);
+  $$('[data-acc]', inn).forEach(b => b.addEventListener('click', () => abrirAccion(s, acc[+b.dataset.acc])));
+  const be = $('#btnEditar', inn); if (be) be.addEventListener('click', () => pintarNueva(s));
+  $('#fCom', inn).addEventListener('submit', async ev => {
+    ev.preventDefault(); const bt = ev.target.querySelector('button'); bt.disabled = true;
+    try { S.detalle = await llamar('comentar', S.token, s.id, new FormData(ev.target).get('t')); pintarDetalle(S.detalle); aviso('Comentario agregado'); }
+    catch(e){ bt.disabled = false; }
+  });
+}
+
+function campoHTML(k, req){
+  const c = CAMPOS[k]; const op = req ? '' : ' <span class="opc">(opcional)</span>';
+  if (c.archivo) return `<div class="grupo-titulo">${c.label}${op}</div>
+    <div class="foto-campo" data-archivo="${k}" data-req="${req ? 1 : 0}">
+      ${TACTIL ? `<input type="file" name="${k}" id="${k}Cam" class="oculto" accept="image/*" capture="environment" tabindex="-1">` : ''}
+      <input type="file" name="${k}" id="${k}Arch" class="oculto" accept="${c.docs ? ACEPTA_DOCS : 'application/pdf,image/*'}" tabindex="-1">
+      <div class="botones">
+        ${TACTIL ? `<label for="${k}Cam" class="btn" style="margin:0">Tomar foto</label>` : ''}
+        <label for="${k}Arch" class="btn" style="margin:0">${TACTIL ? 'Elegir archivo' : c.docs ? 'Subir archivo' : 'Subir foto o PDF'}</label>
+      </div>
+      <p class="estado-linea archivo-elegido" style="margin:8px 0 0"></p>
+    </div>`;
+  if (c.precios) return `<div class="grupo-titulo">${c.label}${op}</div>
+    <p class="estado-linea" style="margin:0 0 8px">Al completarlos se calcula solo el monto total; puedes ajustarlo después (por ejemplo, por despacho).</p>
+    <div class="tabla" data-precios style="margin-bottom:16px"></div>`;
+  if (c.items) return `<div class="grupo-titulo">${c.label}${op}</div>
+    <p class="estado-linea" style="margin:0 0 8px">Parte con lo pedido: cambia solo lo que sea distinto.</p>
+    <div data-items="${k}"></div>
+    <button type="button" class="btn chico" data-mas-item="${k}" style="margin:2px 0 16px">Agregar ítem</button>`;
+  if (c.area) return `<label>${c.label}${op}<textarea name="${k}" ${req ? 'required' : ''}></textarea></label>`;
+  return `<label>${c.label}${op}<input name="${k}" ${c.modo ? `inputmode="${c.modo}"` : ''} placeholder="${esc(c.ph || '')}" ${req ? 'required' : ''}></label>`;
+}
+function abrirAccion(s, a){
+  let campos = a.requiere.concat((a.opcional || []).filter(k => a.requiere.indexOf(k) < 0)).filter(k => k !== 'comentario');
+  if (campos.indexOf('precios') >= 0) campos = ['precios'].concat(campos.filter(k => k !== 'precios')); // los precios antes del monto
+  campos.push('comentario'); // el comentario siempre al final
+  const cont = $('#accForm');
+  cont.innerHTML = `<form id="fAcc" style="margin-top:14px">
+    ${campos.map(k => campoHTML(k, a.requiere.indexOf(k) >= 0)).join('')}
+    <div class="botones"><button type="button" class="btn" id="accCancelar">Cancelar</button>
+    <button type="submit" class="btn ${a.peligro ? 'peligro' : 'primario'}">${esc(a.etiqueta)}</button></div></form>`;
+  const f = $('#fAcc');
+  $$('[data-precios]', f).forEach(box => {
+    box.innerHTML = `<table><thead><tr><th class="num">Cant.</th><th>Unidad</th><th>Descripción</th><th class="num">Precio unit.</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${(s.items || []).map((i, k) => `<tr><td class="num">${esc(i.cantidad)}</td><td>${esc(i.unidad)}</td><td>${esc(i.descripcion)}</td>
+        <td class="num"><input name="precio" data-k="${k}" inputmode="numeric" value="${i.precio ? esc(i.precio) : ''}" aria-label="Precio unitario de ${esc(i.descripcion)}" style="margin:0;min-width:96px;text-align:right"></td>
+        <td class="num" data-sub="${k}"></td></tr>`).join('')}</tbody>
+      <tfoot><tr><th colspan="4" class="num">Total ítems</th><th class="num" data-total></th></tr></tfoot></table>`;
+    const monto = f.querySelector('[name=monto]');
+    if (monto) monto.addEventListener('input', () => { monto.dataset.manual = '1'; });
+    const recalcular = () => {
+      let total = 0, alguno = false;
+      $$('[name=precio]', box).forEach(inp => {
+        const p = Number(inp.value.replace(/\D/g, '')), it = s.items[+inp.dataset.k];
+        const sub = p > 0 ? p * (Number(it.cantidad) || 0) : 0;
+        if (p > 0) alguno = true;
+        total += sub;
+        $(`[data-sub="${inp.dataset.k}"]`, box).textContent = sub ? fmtCLP(Math.round(sub)) : '';
+      });
+      $('[data-total]', box).textContent = alguno ? fmtCLP(Math.round(total)) : '';
+      if (monto && alguno && !monto.dataset.manual) monto.value = Math.round(total);
+    };
+    $$('[name=precio]', box).forEach(inp => inp.addEventListener('input', recalcular));
+    recalcular();
+  });
+  $$('[data-items]', f).forEach(box => {
+    (s.items && s.items.length ? s.items : [null]).forEach(it => filaItem(box, it));
+    $(`[data-mas-item="${box.dataset.items}"]`, f).addEventListener('click', () => filaItem(box).querySelector('[name=desc]').focus());
+  });
+  const primero = f.querySelector('input:not([type=file]),textarea'); if (primero) primero.focus();
+  $$('[data-archivo]', f).forEach(box => {
+    const ins = $$('input[type=file]', box), txt = box.querySelector('.archivo-elegido');
+    ins.forEach(inp => inp.addEventListener('change', () => {
+      if (!inp.files.length) return;
+      ins.forEach(o => { if (o !== inp) o.value = ''; });
+      txt.textContent = 'Seleccionado: ' + inp.files[0].name;
+    }));
+  });
+  $('#accCancelar').addEventListener('click', () => cont.innerHTML = '');
+  f.addEventListener('submit', async ev => {
+    ev.preventDefault(); const bt = f.querySelector('button[type=submit]'); bt.disabled = true;
+    const datos = {};
+    const faltaArchivo = $$('[data-archivo][data-req="1"]', f).find(box => !$$('input[type=file]', box).some(i => i.files.length));
+    if (faltaArchivo){ aviso('Falta adjuntar: ' + CAMPOS[faltaArchivo.dataset.archivo].label.toLowerCase() + '.', true); bt.disabled = false; return; }
+    try {
+      for (const [k, v] of new FormData(f).entries()){
+        if (['cant', 'uni', 'desc', 'precio'].indexOf(k) >= 0) continue; // filas de ítems y precios: se leen abajo
+        if (v instanceof File){ if (v.size) datos[k] = await leerArchivo(v); }
+        else datos[k] = v;
+      }
+      $$('[data-items]', f).forEach(box => { datos[box.dataset.items] = leerItems(box); });
+      $$('[data-precios]', f).forEach(box => { datos.precios = $$('[name=precio]', box).map(inp => inp.value.trim()); });
+      if (datos.alternativa && !datos.alternativa.length){ aviso('Agrega al menos un ítem en la alternativa.', true); bt.disabled = false; return; }
+      S.detalle = await llamar('avanzar', S.token, s.id, a.codigo, datos);
+      S.recienCreada = null; pintarDetalle(S.detalle); aviso('Listo: ' + a.etiqueta.toLowerCase());
+      actualizarEnCache(S.detalle); cargar(true);
+    } catch(e){ bt.disabled = false; }
+  });
+}
+
+/* ---------- Nueva solicitud ---------- */
+// Editor de ítems (cantidad, unidad, descripción): lo usan "Nueva solicitud" y "Proponer alternativa"
+function filaItem(cont, it){
+  const d = document.createElement('div'); d.className = 'item';
+  const uni = it && it.unidad ? it.unidad : 'un';
+  const unidades = UNIDADES.indexOf(uni) >= 0 ? UNIDADES : UNIDADES.concat([uni]);
+  d.innerHTML = `<input name="cant" type="number" min="0" step="any" value="${it ? esc(it.cantidad) : 1}" aria-label="Cantidad">
+    <select name="uni" aria-label="Unidad">${unidades.map(u => `<option ${u === uni ? 'selected' : ''}>${esc(u)}</option>`).join('')}</select>
+    <input name="desc" value="${it ? esc(it.descripcion) : ''}" placeholder="Descripción, medida o modelo" aria-label="Descripción">
+    <button type="button" class="quitar" aria-label="Quitar ítem">×</button>`;
+  d.querySelector('.quitar').addEventListener('click', () => { if ($$('.item', cont).length > 1) d.remove(); });
+  cont.appendChild(d); return d;
+}
+function leerItems(cont){
+  return $$('.item', cont).map(r => ({ cantidad: r.querySelector('[name=cant]').value, unidad: r.querySelector('[name=uni]').value, descripcion: r.querySelector('[name=desc]').value })).filter(i => i.descripcion.trim());
+}
+// Si el cotizador puso precios, agrega precio unitario, subtotal y total
+function tablaItemsHTML(items){
+  const lista = items || [];
+  const conPrecio = lista.some(i => Number(i.precio) > 0);
+  const sub = i => Number(i.precio) > 0 ? Number(i.precio) * (Number(i.cantidad) || 0) : 0;
+  const total = lista.reduce((t, i) => t + sub(i), 0);
+  return `<div class="tabla"><table><thead><tr><th class="num">Cant.</th><th>Unidad</th><th>Descripción</th>${conPrecio ? '<th class="num">Precio unit.</th><th class="num">Subtotal</th>' : ''}</tr></thead>
+    <tbody>${lista.map(i => `<tr><td class="num">${esc(i.cantidad)}</td><td>${esc(i.unidad)}</td><td>${esc(i.descripcion)}</td>${conPrecio
+      ? `<td class="num">${Number(i.precio) > 0 ? esc(fmtCLP(i.precio)) : ''}</td><td class="num">${sub(i) ? esc(fmtCLP(Math.round(sub(i)))) : ''}</td>` : ''}</tr>`).join('')}</tbody>
+    ${conPrecio ? `<tfoot><tr><th colspan="4" class="num">Total ítems</th><th class="num">${esc(fmtCLP(Math.round(total)))}</th></tr></tfoot>` : ''}</table></div>`;
+}
+function contratosDe(faena){ return S.boot.contratos.filter(c => c.faenas.indexOf('TODAS') >= 0 || c.faenas.indexOf(faena) >= 0); }
+function pintarNueva(ed){
+  const b = S.boot;
+  const editando = !!(ed && ed.id);
+  const faena = editando ? ed.faena : (S.faena || (b.faenas[0] && b.faenas[0].codigo) || '');
+  const min = new Date().toISOString().slice(0, 10);
+  const tipoSel = editando ? ed.tipo : Object.keys(b.tipos)[0];
+  const val = k => editando ? esc(ed[k] || '') : '';
+  const prioSel = editando ? ed.prioridad : 'Normal';
+  const fechaVal = editando && ed.necesita_para ? new Date(ed.necesita_para).toISOString().slice(0, 10) : '';
+  const MAXF = maxFotos();
+  const inn = pintarHoja(`
+    <div class="cab"><h2 class="det-titulo" style="margin:0">${editando ? 'Editar ' + esc(ed.id) : 'Nueva solicitud'}</h2><button class="cerrar" aria-label="Cerrar">×</button></div>
+    <form id="fNueva" style="margin-top:16px">
+      <div class="dos">
+        <label>Faena<select name="faena" id="nFaena" required ${editando ? 'disabled' : ''}>${b.faenas.map(f => `<option value="${esc(f.codigo)}" ${f.codigo === faena ? 'selected' : ''}>${esc(f.codigo)} ${esc(f.nombre)}</option>`).join('')}</select></label>
+        ${b.usuario.esCliente ? '' : `<label>Contrato o cliente<select name="contrato" id="nContrato" required></select></label>`}
+      </div>
+      ${editando
+        ? `<p class="estado-linea" style="margin:0 0 16px">Tipo: <b>${esc(b.tipos[ed.tipo] || ed.tipo)}</b>. La faena y el tipo no se pueden cambiar; si están mal, anula esta solicitud y crea una nueva.</p>`
+        : `<div class="grupo-titulo">Tipo de solicitud</div>
+      <div class="tipos">${Object.keys(b.tipos).map(k => `<label class="tipo-op"><input type="radio" name="tipo" value="${k}" ${k === tipoSel ? 'checked' : ''}><div><b>${esc(b.tipos[k])}</b><span>${esc((TIPO_INFO[k] || '').replace('{UMBRAL}', fmtCLP(b.umbral || 200000)))}</span></div></label>`).join('')}</div>
+      <div class="bloque" id="bloqueFirma" style="margin:0 0 16px">
+        <h3>¿Ya tienes el emergente firmado por el cliente?</h3>
+        <p class="estado-linea" style="margin:0 0 12px">Súbelo aquí con el monto total: se salta la cotización y la firma, y pasa directo a la aprobación interna. Si todavía no está firmado, déjalo vacío y lo subes después.</p>
+        <label>Documento firmado <span class="opc">(PDF o foto)</span><input type="file" name="respaldo" accept="application/pdf,image/*"></label>
+        <div class="dos">
+          <label>N° de emergente <span class="opc">(opcional)</span><input name="n_emergente"></label>
+          <label>Monto total <span class="opc">(opcional)</span><input name="monto" inputmode="numeric" placeholder="CLP neto"></label>
+        </div>
+      </div>`}
+      <label>Qué necesitas<input name="titulo" required maxlength="90" value="${val('titulo')}" placeholder="Ej: Gata tijera para camioneta 97"></label>
+      <div class="dos">
+        <label>Equipo o área <span class="opc">(opcional)</span><input name="area" value="${val('area')}" placeholder="Ej: Camioneta 97, losa de lavado"></label>
+        <label>Se necesita para <span class="opc">(opcional)</span><input type="date" name="necesita_para" value="${fechaVal}" ${editando ? '' : `min="${min}"`}></label>
+      </div>
+      <div class="grupo-titulo">Prioridad</div>
+      <div class="segmento" role="radiogroup" aria-label="Prioridad" style="margin-bottom:16px">${b.prioridades.map(p => `<label><input type="radio" name="prioridad" value="${esc(p)}" ${p === prioSel ? 'checked' : ''}><span>${esc(p)}</span></label>`).join('')}</div>
+      <div class="grupo-titulo">Ítems</div>
+      <div id="items"></div>
+      <button type="button" class="btn chico" id="masItem" style="margin:2px 0 16px">Agregar ítem</button>
+      <label>Para qué es y qué pasa si no llega<textarea name="motivo" required placeholder="Ej: La gata actual es muy alta y no sirve en terreno. Sin ella no se puede cambiar un neumático en faena.">${val('motivo')}</textarea></label>
+      <div class="grupo-titulo">Fotos de referencia <span class="opc">(opcional, hasta ${MAXF})</span></div>
+      <div class="foto-campo">
+        <input type="file" id="fotoCam" class="oculto" accept="image/*" capture="environment" tabindex="-1">
+        <input type="file" id="fotoGal" class="oculto" accept="image/*" multiple tabindex="-1">
+        <div class="botones" id="fotoBotones">
+          ${TACTIL ? '<label for="fotoCam" class="btn" style="margin:0">Tomar foto</label>' : ''}
+          <label for="fotoGal" class="btn" style="margin:0">${TACTIL ? 'Elegir de galería' : 'Subir fotos'}</label>
+        </div>
+        <div class="foto-lista" id="fotoLista"></div>
+        <p class="estado-linea" id="fotoInfo" style="margin:8px 0 0"></p>
+      </div>
+      <div class="botones"><button class="btn primario" type="submit">${editando ? 'Guardar cambios' : 'Crear solicitud'}</button><button class="btn cerrar-n" type="button">Cancelar</button></div>
+    </form>`);
+  const selF = $('#nFaena', inn), selC = $('#nContrato', inn);
+  const llenarContratos = () => {
+    if (!selC) return;
+    const cs = contratosDe(selF.value);
+    const pref = editando ? ed.contrato : ((b.usuario.contratos || []).find(k => cs.some(c => c.codigo === k)) || '');
+    selC.innerHTML = cs.map(c => `<option value="${esc(c.codigo)}" ${c.codigo === pref ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('') || '<option value="">Sin contratos en esta faena</option>';
+  };
+  selF.addEventListener('change', llenarContratos); llenarContratos();
+  const bloqueFirma = $('#bloqueFirma', inn);
+  if (bloqueFirma){
+    const verFirma = () => { const t = inn.querySelector('[name=tipo]:checked'); bloqueFirma.hidden = !(t && t.value === 'EMERGENTE'); };
+    $$('[name=tipo]', inn).forEach(r => r.addEventListener('change', verFirma)); verFirma();
+  }
+  const items = $('#items', inn);
+  const agregar = it => filaItem(items, it);
+  if (editando && ed.items && ed.items.length) ed.items.forEach(agregar); else agregar();
+  $('#masItem', inn).addEventListener('click', () => agregar().querySelector('[name=desc]').focus());
+  $('.cerrar-n', inn).addEventListener('click', () => editando ? abrir(ed.id) : cerrarHoja());
+
+  // Fotos: las que ya tiene la solicitud (URL) y las nuevas (data URL), hasta MAXF en total
+  const fotosActuales = editando ? fotosDe(ed).slice() : [];
+  const fotosNuevas = [];
+  const lista = $('#fotoLista', inn), info = $('#fotoInfo', inn), botonesFoto = $('#fotoBotones', inn);
+  let procesando = false;
+  const pintarFotos = () => {
+    const total = fotosActuales.length + fotosNuevas.length;
+    lista.innerHTML = fotosActuales.map((u, k) => `<div class="foto-mini"><img src="${esc(u)}" alt="Foto ${k + 1}"><button type="button" data-quitar="a${k}" aria-label="Quitar foto">×</button></div>`).join('') +
+      fotosNuevas.map((u, k) => `<div class="foto-mini"><img src="${u}" alt="Foto nueva ${k + 1}"><button type="button" data-quitar="n${k}" aria-label="Quitar foto">×</button></div>`).join('');
+    botonesFoto.hidden = total >= MAXF;
+    info.textContent = procesando ? 'Procesando foto…' : total ? `${total} de ${MAXF} fotos` + (total >= MAXF ? '. Quita una para agregar otra.' : '') : '';
+    $$('[data-quitar]', lista).forEach(bq => bq.addEventListener('click', () => {
+      const k = +bq.dataset.quitar.slice(1);
+      if (bq.dataset.quitar[0] === 'a') fotosActuales.splice(k, 1); else fotosNuevas.splice(k, 1);
+      pintarFotos();
+    }));
+  };
+  const elegirFoto = async ev => {
+    const files = Array.from(ev.target.files || []); ev.target.value = '';
+    if (!files.length) return;
+    const cupo = MAXF - fotosActuales.length - fotosNuevas.length;
+    if (files.length > cupo) aviso(`Máximo ${MAXF} fotos por solicitud. Se agregaron ${Math.max(cupo, 0)}.`, true);
+    procesando = true; pintarFotos();
+    for (const file of files.slice(0, Math.max(cupo, 0))){
+      try { fotosNuevas.push(await leerFoto(file)); }
+      catch (e) { aviso('No se pudo leer esa imagen. Prueba con otra foto o tómala de nuevo.', true); }
+    }
+    procesando = false; pintarFotos();
+  };
+  $('#fotoCam', inn).addEventListener('change', elegirFoto);
+  $('#fotoGal', inn).addEventListener('change', elegirFoto);
+  pintarFotos();
+
+  $('#fNueva', inn).addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (procesando){ aviso('Espera a que termine de procesar la foto.', true); return; }
+    const f = new FormData(ev.target); const bt = ev.target.querySelector('button[type=submit]');
+    const d = {
+      faena: faena && editando ? faena : f.get('faena'), contrato: f.get('contrato') || '', tipo: editando ? ed.tipo : f.get('tipo'),
+      titulo: f.get('titulo'), area: f.get('area'), necesita_para: f.get('necesita_para'), prioridad: f.get('prioridad'), motivo: f.get('motivo'),
+      items: leerItems(items)
+    };
+    if (!d.items.length){ aviso('Agrega al menos un ítem con descripción.', true); return; }
+    const texto = bt.textContent; bt.disabled = true; bt.textContent = editando ? 'Guardando…' : 'Creando…';
+    try {
+      d.fotos = fotosNuevas.slice();
+      if (editando) d.fotos_mantener = fotosActuales.slice();
+      if (!editando && d.tipo === 'EMERGENTE'){
+        d.n_emergente = f.get('n_emergente') || ''; d.monto = f.get('monto') || '';
+        const r = f.get('respaldo');
+        if (r && r.size){
+          if (!(Number(String(d.monto).replace(/\D/g, '')) > 0)){ aviso('Para subir el emergente firmado indica el monto total.', true); bt.disabled = false; bt.textContent = texto; return; }
+          d.respaldo = await leerArchivo(r);
+        }
+      }
+      let s;
+      if (editando){ s = await llamar('editar', S.token, ed.id, d); aviso('Cambios guardados'); }
+      else { s = await llamar('crear', S.token, d); S.recienCreada = s.id; }
+      S.detalle = s; pintarDetalle(s); actualizarEnCache(s); cargar(true);
+    } catch(e){ bt.disabled = false; bt.textContent = texto; }
+  });
+}
+// Respaldos y cotizaciones: las fotos se achican menos que las de referencia para que el texto se lea
+function leerArchivo(file){
+  if (/^image\//.test(file.type)) return leerFoto(file, 2000);
+  // Algunos equipos no informan el tipo de un Excel o Word: se deduce por la extensión
+  const ext = String(file.name || '').split('.').pop().toLowerCase();
+  const tipo = TIPOS_DOCUMENTO.indexOf(file.type) >= 0 ? file.type : TIPOS_DOCUMENTO[['pdf', 'xlsx', 'xls', 'docx', 'doc'].indexOf(ext)];
+  if (!tipo) return Promise.reject(new Error('Solo se aceptan PDF, fotos, Excel o Word.'));
+  if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error('El archivo pesa más de 8 MB. Escanéalo en menor resolución o súbelo como foto.'));
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(String(fr.result).replace(/^data:[^;,]*;/, 'data:' + tipo + ';'));
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+function leerFoto(file, max){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => { const img = new Image(); img.onload = () => {
+      const k = Math.min(1, (max || 1280) / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.8));
+    }; img.onerror = rej; img.src = fr.result; };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+
+/* ---------- Panel ---------- */
+const ORDEN_ESTADOS = ['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','APROBADA','EN_COMPRA','ENTREGADA','OBSERVADA','POR_ACEPTAR'];
+// El panel también queda guardado: si ya se calculó hace menos de 1 minuto se muestra al tiro; si no, se muestra el anterior y se recalcula por detrás
+async function pintarPanel(){
+  const v = $('#vista');
+  const clave = S.faena || '*';
+  const prev = S.panelCache && S.panelCache[clave];
+  if (prev){
+    dibujarPanel(prev.p);
+    if (Date.now() - prev.t < FRESCO_MS) return;
+  } else v.innerHTML = '<p class="cargando">Calculando…</p>';
+  let p; try { p = await llamar('panel', S.token, { faena: S.faena }); } catch(e){ return; }
+  S.panelCache = S.panelCache || {};
+  S.panelCache[clave] = { p, t: Date.now() };
+  if (S.vista === 'panel' && (S.faena || '*') === clave) dibujarPanel(p);
+}
+function dibujarPanel(p){
+  const v = $('#vista'); if (!v) return;
+  const maxE = Math.max(1, ...Object.values(p.porEstado));
+  const ordenEstados = ORDEN_ESTADOS.filter(e => p.porEstado[e]);
+  const tabla = (o, titulo) => {
+    const ks = Object.keys(o).sort((a, b) => o[b].vencidas - o[a].vencidas || o[b].abiertas - o[a].abiertas);
+    return `<section class="bloque"><h3>${titulo}</h3>${ks.length ? `<div class="tabla"><table><thead><tr><th></th><th class="num">Abiertas</th><th class="num">Vencidas</th></tr></thead><tbody>
+      ${ks.map(k => `<tr><td>${esc(k)}</td><td class="num">${o[k].abiertas}</td><td class="num" style="${o[k].vencidas ? 'color:var(--alerta);font-weight:700' : ''}">${o[k].vencidas}</td></tr>`).join('')}</tbody></table></div>` : '<p class="estado-linea">Sin solicitudes abiertas.</p>'}</section>`;
+  };
+  v.innerHTML = `
+    <div class="metricas">
+      <div><span class="num">${p.abiertas}</span>abiertas</div>
+      <div class="${p.vencidas ? 'mal' : ''}"><span class="num">${p.vencidas}</span>fuera de plazo</div>
+      <div><span class="num">${p.promedioDias == null ? '–' : p.promedioDias.toFixed(1).replace('.', ',')}</span>días promedio entre pedido y recepción (últimos 30 días)</div>
+      <div><span class="num">${p.cerradas30}</span>recibidas conforme en 30 días</div>
+    </div>
+    <div class="columnas">
+      <section class="bloque"><h3>Dónde se están quedando</h3>
+        ${ordenEstados.length ? ordenEstados.map(e => `<div class="barra-h"><span>${esc(RIEL_CORTO[e] && e !== 'RECIBIDA' ? RIEL_CORTO[e] : nomEstado(e))}</span><span class="b"><i style="width:${p.porEstado[e] / maxE * 100}%"></i></span><span class="num">${p.porEstado[e]}</span></div>`).join('') : '<p class="estado-linea">Sin solicitudes abiertas.</p>'}
+      </section>
+      <section class="bloque"><h3>Vencidas por responsable</h3>
+        ${p.porResponsable.length ? p.porResponsable.map(([k, n]) => `<div class="barra-h"><span>${esc(k)}</span><span class="b"><i class="v" style="width:${n / p.porResponsable[0][1] * 100}%"></i></span><span class="num">${n}</span></div>`).join('') : '<p class="estado-linea">Nada fuera de plazo.</p>'}
+      </section>
+      ${tabla(p.porFaena, 'Por faena')}
+      ${tabla(p.porContrato, 'Por contrato')}
+    </div>`;
+}
+
+/* ---------- Modo demostración (solo fuera de Apps Script) ---------- */
+const DEMO = (() => {
+  const ESTADOS = { SOLICITADA:'Solicitada', COTIZANDO:'Cotizando', POR_VALIDAR:'Esperando primera aprobación', POR_APROBAR:'Esperando firma cliente', POR_AUTORIZAR:'Esperando autorización jefatura', APROBADA:'Aprobada', EN_COMPRA:'En compra', ENTREGADA:'Entregada', RECIBIDA:'Recibida conforme', OBSERVADA:'Falta información', RECHAZADA:'Rechazada', ANULADA:'Anulada' };
+  const TIPOS = { EMERGENTE:'Emergente', COMPRA:'Compra MITT', BODEGA:'Retiro de bodega' };
+  const RUTAS = { EMERGENTE:['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','APROBADA','EN_COMPRA','ENTREGADA','RECIBIDA'], COMPRA:['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','APROBADA','EN_COMPRA','ENTREGADA','RECIBIDA'], BODEGA:['SOLICITADA','ENTREGADA','RECIBIDA'] };
+  const UMBRAL = 200000;
+  const MAXF = 3;
+  const AVISO_H = 24;
+  const RESP = { EMERGENTE:{SOLICITADA:'COTIZADOR',COTIZANDO:'COTIZADOR',POR_VALIDAR:'VALIDADOR',POR_AUTORIZAR:'APROBADOR',POR_APROBAR:'SOLICITANTE',APROBADA:'COMPRADOR',EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, COMPRA:{SOLICITADA:'COTIZADOR',COTIZANDO:'COTIZADOR',POR_VALIDAR:'VALIDADOR',POR_AUTORIZAR:'APROBADOR',APROBADA:'COMPRADOR',EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, BODEGA:{SOLICITADA:'BODEGA',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'} };
+  const TRANS = [
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'SOLICITADA', a: 'COTIZANDO', etiqueta: 'Tomar y cotizar', requiere: [] },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'COTIZANDO', a: 'SIGUIENTE', etiqueta: 'Enviar a aprobación', requiere: ['monto'], opcional: ['proveedor', 'cotizacion_url'] },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_VALIDAR', a: 'SIGUIENTE', etiqueta: 'Aprobar', requiere: [] },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_VALIDAR', a: 'RECHAZADA', etiqueta: 'Rechazar', requiere: ['comentario'], peligro: true },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_AUTORIZAR', a: 'SIGUIENTE', etiqueta: 'Autorizar compra', requiere: [] },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_AUTORIZAR', a: 'RECHAZADA', etiqueta: 'No autorizar', requiere: ['comentario'], peligro: true },
+    { tipos: ['EMERGENTE'], de: 'POR_APROBAR', a: 'APROBADA', etiqueta: 'Subir respaldo firmado', requiere: ['respaldo'], opcional: ['n_emergente'] },
+    { tipos: ['EMERGENTE'], de: 'POR_APROBAR', a: 'RECHAZADA', etiqueta: 'Cliente no aprobó', requiere: ['comentario'], peligro: true },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'APROBADA', a: 'EN_COMPRA', etiqueta: 'Salir a comprar', requiere: [] },
+    { tipos: ['BODEGA'], de: 'SOLICITADA', a: 'ENTREGADA', etiqueta: 'Entregar desde bodega', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] },
+    { tipos: ['EMERGENTE', 'COMPRA'], de: 'EN_COMPRA', a: 'ENTREGADA', etiqueta: 'Marcar entregada', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] },
+    { tipos: ['EMERGENTE', 'COMPRA', 'BODEGA'], de: 'ENTREGADA', a: 'RECIBIDA', etiqueta: 'Confirmar recepción', requiere: [] }
+  ];
+  function rutaDe(s){
+    let r = (RUTAS[s.tipo] || []).slice(); const m = Number(s.monto) || 0;
+    if (m > 0 && m <= UMBRAL && s.estado !== 'POR_AUTORIZAR') r = r.filter(x => x !== 'POR_AUTORIZAR');
+    if (s.tipo === 'EMERGENTE' && s.respaldo_url && s.estado !== 'POR_APROBAR') r = r.filter(x => x !== 'POR_APROBAR');
+    return r;
+  }
+  function etiquetaPaso(de, a, base){
+    if (de === 'POR_VALIDAR') return a === 'POR_AUTORIZAR' ? 'Aprobar y enviar a jefatura' : a === 'POR_APROBAR' ? 'Aprobar y enviar a firma del cliente' : 'Aprobar compra';
+    if (de === 'POR_AUTORIZAR') return a === 'POR_APROBAR' ? 'Autorizar y enviar a firma del cliente' : 'Autorizar compra';
+    return base;
+  }
+  const CERR = ['RECIBIDA','RECHAZADA','ANULADA'];
+  const SLA = { SOLICITADA:1, COTIZANDO:2, POR_VALIDAR:1, POR_APROBAR:2, POR_AUTORIZAR:1, APROBADA:1, EN_COMPRA:3, ENTREGADA:2, OBSERVADA:2 };
+  const US = [
+    { id:'11111111-1', nombre:'Administrador (ejemplo)', roles:['ADMIN','SOLICITANTE'], faenas:['TODAS'], contratos:['FIN-CAEX-DMH'] },
+    { id:'U2', nombre:'Expeditor DMH', roles:['COTIZADOR','COMPRADOR'], faenas:['DMH'] },
+    { id:'U3', nombre:'Jefatura DMH', roles:['APROBADOR'], faenas:['DMH'] },
+    { id:'U9', nombre:'Validador DMH', roles:['VALIDADOR'], faenas:['DMH'] },
+    { id:'U10', nombre:'ADC DMH', roles:['VALIDADOR'], faenas:['DMH'] },
+    { id:'U4', nombre:'Bodega DMH', roles:['BODEGA'], faenas:['DMH'] },
+    { id:'U5', nombre:'Expeditor Chuqui', roles:['COTIZADOR','COMPRADOR','BODEGA'], faenas:['CHUQUI'] },
+    { id:'U6', nombre:'Jefatura Chuqui', roles:['APROBADOR'], faenas:['CHUQUI'] },
+    { id:'U7', nombre:'Supervisor DMH', roles:['SOLICITANTE'], faenas:['DMH'] },
+    { id:'U8', nombre:'Supervisores Turno', roles:['SOLICITANTE'], faenas:['DMH'] }
+  ];
+  const yo = US[0];
+  const hace = d => new Date(Date.now() - d * 864e5).toISOString();
+  const base = (o) => Object.assign({ respaldo_url:'', entrega_url:'', validado_por:'', autorizado_por:'', area:'', prioridad:'Normal', necesita_para:'', foto_url:'', estado_previo:'', monto:'', proveedor:'', cotizacion_url:'', n_emergente:'', aprobado_por:'', comprado_por:'', entregado_a:'', recibido_por:'', cerrada:'' }, o);
+  let sols = [
+    base({ id:'DMH-0007', creada:hace(11), faena:'DMH', contrato:'MITT', tipo:'COMPRA', prioridad:'Alta', area:'Camioneta 97', titulo:'Gata tijera para camioneta 97', items:[{cantidad:1,unidad:'un',descripcion:'Gata tijera baja, apta para terreno'}], motivo:'La gata actual es muy alta y no se adapta a las condiciones de terreno.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'SOLICITADA', estado_desde:hace(11) }),
+    base({ id:'DMH-0008', creada:hace(11), faena:'DMH', contrato:'KOM-PALA-DMH', tipo:'BODEGA', prioridad:'Crítica', area:'Trabajador turno B', titulo:'Respirador talla L', items:[{cantidad:1,unidad:'un',descripcion:'Respirador medio rostro talla L'}], motivo:'Trabajador sin respirador de su talla; no puede ingresar a zonas con exposición.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'SOLICITADA', estado_desde:hace(11), necesita_para:hace(10) }),
+    base({ id:'DMH-0005', creada:hace(16), faena:'DMH', contrato:'KOM-PALA-DMH', tipo:'COMPRA', prioridad:'Alta', titulo:'Palas chicas punta plana', items:[{cantidad:2,unidad:'un',descripcion:'Pala chica punta plana'},{cantidad:2,unidad:'un',descripcion:'Pala cuadrada chica'}], motivo:'Solicitud hecha hace varios turnos. Cliente levantó tarjeta verde interna.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'EN_COMPRA', estado_desde:hace(13), monto:38500, proveedor:'Sodimac Calama', validado_por:'Validador DMH', comprado_por:'Expeditor DMH' }),
+    base({ id:'DMH-0011', creada:hace(2), faena:'DMH', contrato:'MITT', tipo:'COMPRA', area:'Retroexcavadora', titulo:'Baliza imantada naranja', items:[{cantidad:1,unidad:'un',descripcion:'Baliza LED imantada color naranja 12-24V'}], motivo:'Baliza de retro quemada. Equipo no puede circular en faena sin baliza.', solicitante_id:'U8', solicitante:'Supervisores Turno', estado:'COTIZANDO', estado_desde:hace(1.5) }),
+    base({ id:'DMH-0012', creada:hace(7), faena:'DMH', contrato:'MITT', tipo:'COMPRA', area:'Losa de lavado', titulo:'Manómetros de acero inoxidable 20 bar', items:[{cantidad:2,unidad:'un',descripcion:'Manómetro acero inoxidable 20 bar, conexión 1/4"'}], motivo:'Para turno próxima semana. Sin manómetro no se puede verificar presión de lavado.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'POR_VALIDAR', estado_desde:hace(0.4), monto:184000, proveedor:'Ferretería industrial Calama' }),
+    base({ id:'DMH-0014', creada:hace(3), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'COMPRA', prioridad:'Alta', area:'Losa de lavado', titulo:'Kit de reparación bomba hidrolavadora', items:[{cantidad:1,unidad:'juego',descripcion:'Kit sellos y válvulas bomba triplex 200 bar'}], motivo:'Bomba pierde presión; sin reparación se detiene el lavado de CAEX.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'POR_AUTORIZAR', estado_desde:hace(0.5), monto:465000, proveedor:'Distribuidor Kärcher Antofagasta', validado_por:'Validador DMH' }),
+    base({ id:'DMH-0013', creada:hace(0.3), faena:'DMH', contrato:'MITT', tipo:'EMERGENTE', area:'Baño varones Finning', titulo:'Monomando lavatorio y tornillos', items:[{cantidad:1,unidad:'un',descripcion:'Llave monomando lavatorio'},{cantidad:200,unidad:'un',descripcion:'Tornillo madera 1 5/8"'},{cantidad:200,unidad:'un',descripcion:'Tornillo punta broca 1 5/8"'}], motivo:'Llave actual en mal estado; tornillos para trabajos normales del contrato.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'OBSERVADA', estado_previo:'SOLICITADA', estado_desde:hace(0.2) }),
+    base({ id:'DMH-0003', creada:hace(21), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'BODEGA', titulo:'Pintacal para demarcación', items:[{cantidad:6,unidad:'saco',descripcion:'Pintacal'}], motivo:'Demarcación de áreas de la losa.', solicitante_id:'U8', solicitante:'Supervisores Turno', estado:'RECIBIDA', estado_desde:hace(13), cerrada:hace(13), entregado_a:'Supervisor turno A', recibido_por:'Supervisores Turno' }),
+    base({ id:'CHUQUI-0001', creada:hace(3), faena:'CHUQUI', contrato:'MITT', tipo:'BODEGA', titulo:'Huincha aisladora verde, color del mes', items:[{cantidad:6,unidad:'rollo',descripcion:'Huincha aisladora verde'}], motivo:'Marcaje de herramientas del mes.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'ENTREGADA', estado_desde:hace(1), entregado_a:'Bodega turno B' })
+  ];
+  let hist = [
+    { fecha:hace(11), id:'DMH-0007', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
+    { fecha:hace(16), id:'DMH-0005', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
+    { fecha:hace(14), id:'DMH-0005', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'APROBADA', comentario:'' },
+    { fecha:hace(13), id:'DMH-0005', usuario:'Expeditor DMH', accion:'Salir a comprar', de:'APROBADA', a:'EN_COMPRA', comentario:'Sin stock en Calama, se pidió a Antofagasta.' },
+    { fecha:hace(3), id:'DMH-0014', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
+    { fecha:hace(1), id:'DMH-0014', usuario:'Expeditor DMH', accion:'Enviar a aprobación', de:'COTIZANDO', a:'POR_VALIDAR', comentario:'' },
+    { fecha:hace(0.5), id:'DMH-0014', usuario:'Validador DMH', accion:'Aprobar y enviar a jefatura', de:'POR_VALIDAR', a:'POR_AUTORIZAR', comentario:'Repuesto original, precio revisado.' },
+    { fecha:hace(0.3), id:'DMH-0013', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
+    { fecha:hace(0.2), id:'DMH-0013', usuario:'Expeditor DMH', accion:'Pedir más información', de:'SOLICITADA', a:'OBSERVADA', comentario:'No hay pedido formal con cotización y firma. Falta levantamiento firmado.' }
+  ];
+  let seq = { DMH:14, CHUQUI:1, DRT:0, DGM:0 };
+  const listaFotos = v => String(v || '').split(/\s*\n\s*/).filter(Boolean);
+  const tieneRol = (rol, s) => !!rol && (rol === 'SOLICITANTE' ? (s.solicitante_id === yo.id || yo.roles.includes('ADMIN')) : true);
+  function responsable(s){
+    if (CERR.includes(s.estado)) return '';
+    const rol = (RESP[s.tipo] || {})[s.estado]; if (!rol) return '';
+    if (rol === 'SOLICITANTE') return s.solicitante;
+    const n = US.filter(u => u.roles.includes(rol) && (u.faenas.includes('TODAS') || u.faenas.includes(s.faena))).map(u => u.nombre);
+    return n.join(', ') || 'Sin responsable en ' + s.faena;
+  }
+  function acciones(s){
+    if (CERR.includes(s.estado)) return [];
+    const rol = (RESP[s.tipo] || {})[s.estado], out = [];
+    const ruta = rutaDe(s), ir = ruta.indexOf(s.estado);
+    const propia = (s.estado === 'POR_VALIDAR' || s.estado === 'POR_AUTORIZAR') && s.solicitante_id === yo.id;
+    TRANS.forEach(t => {
+      if (!t.tipos.includes(s.tipo) || t.de !== s.estado || !tieneRol(rol, s) || propia) return;
+      let destino = t.a, etiqueta = t.etiqueta;
+      if (destino === 'SIGUIENTE'){
+        destino = ir >= 0 ? ruta[ir + 1] : null; if (!destino) return;
+        if (t.de === 'POR_VALIDAR' && destino === 'POR_AUTORIZAR' && yo.roles.includes('APROBADOR') && ruta[ir + 2]){
+          destino = ruta[ir + 2]; etiqueta = destino === 'POR_APROBAR' ? 'Aprobar, autorizar y enviar a firma del cliente' : 'Aprobar y autorizar compra';
+        } else etiqueta = etiquetaPaso(t.de, destino, t.etiqueta);
+      }
+      out.push({ codigo:'T:' + destino, etiqueta, requiere:t.requiere, opcional:t.opcional || [], peligro:!!t.peligro });
+    });
+    if (s.estado !== 'OBSERVADA' && s.estado !== 'ENTREGADA' && rol && rol !== 'SOLICITANTE') out.push({ codigo:'OBSERVAR', etiqueta:'Pedir más información', requiere:['comentario'], opcional:[], peligro:false });
+    if (s.estado === 'OBSERVADA') out.push({ codigo:'REENVIAR', etiqueta:'Responder y reenviar', requiere:['comentario'], opcional:[], peligro:false });
+    if (ir >= 1) out.push({ codigo:'RETROCEDER', etiqueta:'Devolver a ' + ({ SOLICITADA:'solicitada', COTIZANDO:'cotización', POR_VALIDAR:'primera aprobación', POR_AUTORIZAR:'autorización de jefatura', POR_APROBAR:'firma del cliente', APROBADA:'aprobada', EN_COMPRA:'en compra' }[ruta[ir - 1]] || ESTADOS[ruta[ir - 1]].toLowerCase()), requiere:['comentario'], opcional:[], peligro:false });
+    out.push({ codigo:'ANULAR', etiqueta:'Anular solicitud', requiere:['comentario'], opcional:[], peligro:true });
+    return out;
+  }
+  function ser(s){
+    const o = Object.assign({}, s); const cerr = CERR.includes(s.estado);
+    const desde = Date.parse(s.estado_desde);
+    const dias = (Date.now() - desde) / 864e5; const sla = SLA[s.estado] || 0;
+    const nec = s.necesita_para ? Date.parse(s.necesita_para) : 0;
+    const fuera = !!nec && !cerr && s.estado !== 'ENTREGADA' && Date.now() > nec + 0.5 * 864e5;
+    o.responsable = responsable(s); o.dias_en_estado = Math.floor(dias); o.sla = sla; o.fuera_de_fecha = fuera;
+    o.vencida = !cerr && ((sla > 0 && dias > sla) || fuera);
+    const lim = []; if (sla > 0) lim.push(desde + sla * 864e5); if (nec && s.estado !== 'ENTREGADA') lim.push(nec + 0.5 * 864e5);
+    const limite = lim.length ? Math.min(...lim) : 0;
+    o.horas_para_vencer = !cerr && limite ? Math.round((limite - Date.now()) / 36e5) : null;
+    o.por_vencer = !cerr && !o.vencida && limite > 0 && limite - Date.now() <= AVISO_H * 36e5;
+    o.fotos = listaFotos(s.foto_url);
+    o.dias_totales = Math.floor(((cerr && s.cerrada ? Date.parse(s.cerrada) : Date.now()) - Date.parse(s.creada)) / 864e5);
+    o.ruta = rutaDe(s); o.acciones = acciones(s); o.esMia = s.solicitante_id === yo.id || (yo.contratos || []).includes(s.contrato); o.meToca = o.acciones.some(a => a.codigo !== 'ANULAR');
+    o.puedeEditar = ['SOLICITADA','OBSERVADA'].includes(s.estado);
+    return o;
+  }
+  const contratos = [
+    { codigo:'FIN-CAEX-DMH', nombre:'Finning CAEX DMH', cliente:'Finning', faenas:['DMH'] },
+    { codigo:'FIN-PALA-DMH', nombre:'Finning Palas DMH', cliente:'Finning', faenas:['DMH'] },
+    { codigo:'KOM-PALA-DMH', nombre:'Komatsu Palas DMH', cliente:'Komatsu', faenas:['DMH'] },
+    { codigo:'MITT', nombre:'Interno MITT', cliente:'MITT', faenas:['TODAS'] }
+  ];
+  const pr = { 'Crítica':0, 'Alta':1, 'Normal':2 };
+  const fotosEntrantes = d => (Array.isArray(d.fotos) ? d.fotos : []).concat(d.foto ? [d.foto] : []).filter(x => x && String(x).indexOf('data:') === 0);
+  return {
+    login: () => ({ token:'demo', cambiarPin:false }),
+    faenasPublicas: () => [{codigo:'DMH',nombre:'Ministro Hales'},{codigo:'CHUQUI',nombre:'Chuquicamata'},{codigo:'DRT',nombre:'Radomiro Tomic'},{codigo:'DGM',nombre:'Gabriela Mistral'}],
+    solicitarAcceso: () => true,
+    contratosPublicos: () => contratos.map(c => ({ codigo:c.codigo, nombre:c.nombre, faenas:c.faenas })),
+    cambiarPin: (t, a, n) => { if (!/^\d{4,8}$/.test(n) || /^(\d)\1+$/.test(n) || '0123456789'.includes(n) || '9876543210'.includes(n)) throw new Error('El PIN debe tener entre 4 y 8 números y no puede ser obvio (1234, 0000, 1111...).'); return true; },
+    salir: () => true,
+    bootstrap: () => ({ usuario:{ id:yo.id, nombre:yo.nombre, roles:yo.roles, contratos:yo.contratos || [], esCliente:false, esAdmin:true },
+      faenas:[{codigo:'DMH',nombre:'Ministro Hales'},{codigo:'CHUQUI',nombre:'Chuquicamata'},{codigo:'DRT',nombre:'Radomiro Tomic'},{codigo:'DGM',nombre:'Gabriela Mistral'}],
+      contratos, tipos:TIPOS, estados:ESTADOS, rutas:RUTAS, prioridades:['Crítica','Alta','Normal'], cerrados:CERR, urlApp:'', umbral:UMBRAL, maxFotos:MAXF }),
+    listar(t, f){
+      let all = sols.map(ser); if (f.faena) all = all.filter(s => s.faena === f.faena);
+      const ab = all.filter(s => !CERR.includes(s.estado));
+      const conteos = { pendientes: ab.filter(s => s.meToca).length, mias: ab.filter(s => s.esMia).length, vencidas: ab.filter(s => s.vencida).length };
+      let it = f.incluirCerradas ? all : ab;
+      if (f.vista === 'pendientes') it = ab.filter(s => s.meToca);
+      if (f.vista === 'mias') it = it.filter(s => s.esMia);
+      if (f.texto){ const q = f.texto.toLowerCase(); it = it.filter(s => (s.id + ' ' + s.titulo + ' ' + s.area + ' ' + s.solicitante + ' ' + s.responsable + ' ' + s.contrato).toLowerCase().includes(q)); }
+      it.sort((a, b) => (CERR.includes(a.estado) - CERR.includes(b.estado)) || (b.vencida - a.vencida) || (pr[a.prioridad] - pr[b.prioridad]) || (b.dias_en_estado - a.dias_en_estado));
+      return { items:it, conteos };
+    },
+    obtener(t, id){
+      const s = sols.find(x => x.id === id); if (!s) throw new Error('No existe la solicitud ' + id + '.');
+      const o = ser(s); o.historial = hist.filter(h => h.id === id).sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha)); return o;
+    },
+    crear(t, d){
+      if (!d.titulo || d.titulo.trim().length < 4) throw new Error('Escribe en el título qué necesitas.');
+      if (!d.motivo || d.motivo.trim().length < 5) throw new Error('Explica para qué es y qué pasa si no llega.');
+      const fotos = fotosEntrantes(d);
+      if (fotos.length > MAXF) throw new Error('Puedes adjuntar hasta ' + MAXF + ' fotos por solicitud.');
+      seq[d.faena] = (seq[d.faena] || 0) + 1;
+      const id = d.faena + '-' + ('000' + seq[d.faena]).slice(-4), ahora = new Date().toISOString();
+      sols.push(base({ id, creada:ahora, faena:d.faena, contrato:d.contrato, tipo:d.tipo, prioridad:d.prioridad, area:d.area || '', titulo:d.titulo.trim(),
+        necesita_para: d.necesita_para ? new Date(d.necesita_para + 'T12:00:00').toISOString() : '',
+        items:d.items.map(i => ({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() })), motivo:d.motivo.trim(), foto_url:fotos.join('\n'),
+        solicitante_id:yo.id, solicitante:yo.nombre, estado:'SOLICITADA', estado_desde:ahora, n_emergente:d.n_emergente || '',
+        monto: Number(String(d.monto || '').replace(/\D/g, '')) || '' }));
+      const nueva = sols[sols.length - 1];
+      if (d.tipo === 'EMERGENTE' && d.respaldo){ if (!(Number(nueva.monto) > 0)){ sols.pop(); throw new Error('Para subir el emergente firmado indica el monto total.'); } nueva.respaldo_url = d.respaldo; nueva.estado = 'POR_VALIDAR'; nueva.aprobado_por = yo.nombre; }
+      hist.push({ fecha:ahora, id, usuario:yo.nombre, accion: nueva.respaldo_url ? 'Creó la solicitud con respaldo firmado' : 'Creó la solicitud', de:'', a:nueva.estado, comentario:'' });
+      return this.obtener(t, id);
+    },
+    avanzar(t, id, cod, d){
+      const s = sols.find(x => x.id === id); const acc = acciones(s).find(a => a.codigo === cod);
+      if (!acc) throw new Error('Esta acción ya no está disponible.');
+      acc.requiere.forEach(k => { if (!String(d[k] || '').trim()) throw new Error('Falta completar: ' + (CAMPOS[k] ? CAMPOS[k].label.toLowerCase() : k) + '.'); });
+      if (d.monto){ const m = Number(String(d.monto).replace(/\D/g, '')); if (!(m > 0)) throw new Error('El monto debe ser un número mayor a cero.'); s.monto = m; }
+      ['proveedor','cotizacion_url','n_emergente','entregado_a'].forEach(k => { if (d[k] && d[k].trim()) s[k] = d[k].trim(); });
+      if (d.respaldo) s.respaldo_url = d.respaldo;
+      if (d.respaldo_entrega) s.entrega_url = d.respaldo_entrega;
+      const de = s.estado; let a, nota = '';
+      if (cod.startsWith('T:')) a = cod.slice(2);
+      else if (cod === 'OBSERVAR'){ s.estado_previo = de; a = 'OBSERVADA'; }
+      else if (cod === 'REENVIAR'){ a = s.estado_previo || 'SOLICITADA'; s.estado_previo = ''; }
+      else if (cod === 'RETROCEDER'){ const r = rutaDe(s); a = r[r.indexOf(de) - 1]; if (a === 'POR_VALIDAR') s.validado_por = ''; if (a === 'POR_AUTORIZAR') s.autorizado_por = ''; if (a === 'POR_APROBAR') s.aprobado_por = ''; if (a === 'APROBADA') s.comprado_por = ''; if (a === 'EN_COMPRA' || (a === 'SOLICITADA' && s.tipo === 'BODEGA')){ s.entregado_a = ''; s.entrega_url = ''; } }
+      else a = 'ANULADA';
+      if (cod.startsWith('T:') && a !== 'RECHAZADA'){
+        if (de === 'POR_VALIDAR') s.validado_por = yo.nombre; if (de === 'POR_AUTORIZAR') s.autorizado_por = yo.nombre; if (de === 'POR_APROBAR') s.aprobado_por = yo.nombre;
+        if (de === 'POR_VALIDAR' && a !== 'POR_AUTORIZAR' && rutaDe(s).includes('POR_AUTORIZAR')){ s.autorizado_por = yo.nombre; nota = 'Primera aprobación y autorización de jefatura hechas por la misma persona (jefatura en reemplazo del validador).'; }
+      }
+      if (a === 'RECHAZADA') s.estado_previo = de;
+      if (a === 'EN_COMPRA') s.comprado_por = yo.nombre;
+      if (a === 'RECIBIDA') s.recibido_por = yo.nombre;
+      s.estado = a; s.estado_desde = new Date().toISOString(); if (CERR.includes(a)) s.cerrada = s.estado_desde;
+      hist.push({ fecha:s.estado_desde, id, usuario:yo.nombre, accion:acc.etiqueta, de, a, comentario:[(d.comentario || '').trim(), nota].filter(Boolean).join(' | ') });
+      return this.obtener(t, id);
+    },
+    editar(t, id, d){
+      const s = sols.find(x => x.id === id);
+      if (!['SOLICITADA','OBSERVADA'].includes(s.estado)) throw new Error('Ya no se puede editar.');
+      if (!d.titulo || d.titulo.trim().length < 4) throw new Error('Escribe en el título qué necesitas.');
+      if (!d.motivo || d.motivo.trim().length < 5) throw new Error('Explica para qué es y qué pasa si no llega.');
+      const items = d.items.map(i => ({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() }));
+      const cambios = [];
+      const ch = (k, n, v) => { if (JSON.stringify(s[k]) !== JSON.stringify(v)){ cambios.push(n); s[k] = v; } };
+      ch('titulo', 'título', d.titulo.trim()); ch('items', 'ítems', items); ch('motivo', 'motivo', d.motivo.trim());
+      ch('area', 'equipo o área', (d.area || '').trim()); ch('prioridad', 'prioridad', d.prioridad);
+      if (d.contrato) ch('contrato', 'contrato', d.contrato);
+      const f = d.necesita_para ? new Date(d.necesita_para + 'T12:00:00').toISOString() : '';
+      if ((s.necesita_para || '').slice(0, 10) !== f.slice(0, 10)){ cambios.push('fecha requerida'); s.necesita_para = f; }
+      const actuales = listaFotos(s.foto_url), nuevas = fotosEntrantes(d);
+      const mantener = Array.isArray(d.fotos_mantener) ? d.fotos_mantener.filter(x => actuales.includes(x)) : (d.foto ? [] : actuales);
+      if (mantener.length + nuevas.length > MAXF) throw new Error('Puedes tener hasta ' + MAXF + ' fotos por solicitud.');
+      const finales = mantener.concat(nuevas);
+      if (finales.join('\n') !== actuales.join('\n')){ cambios.push('fotos'); s.foto_url = finales.join('\n'); }
+      if (!cambios.length) throw new Error('No hiciste cambios.');
+      hist.push({ fecha:new Date().toISOString(), id, usuario:yo.nombre, accion:'Editó la solicitud', de:'', a:'', comentario:'Cambió: ' + cambios.join(', ') });
+      return this.obtener(t, id);
+    },
+    comentar(t, id, txt){
+      if (!String(txt || '').trim()) throw new Error('Escribe un comentario.');
+      hist.push({ fecha:new Date().toISOString(), id, usuario:yo.nombre, accion:'Comentó', de:'', a:'', comentario:txt.trim() }); return this.obtener(t, id);
+    },
+    panel(t, f){
+      let all = sols.map(ser); if (f.faena) all = all.filter(s => s.faena === f.faena);
+      const ab = all.filter(s => !CERR.includes(s.estado));
+      const cerr = all.filter(s => s.estado === 'RECIBIDA' && Date.parse(s.cerrada) > Date.now() - 30 * 864e5);
+      const ag = k => { const o = {}; ab.forEach(s => { o[s[k]] = o[s[k]] || { abiertas:0, vencidas:0 }; o[s[k]].abiertas++; if (s.vencida) o[s[k]].vencidas++; }); return o; };
+      const pe = {}; ab.forEach(s => pe[s.estado] = (pe[s.estado] || 0) + 1);
+      const prr = {}; ab.filter(s => s.vencida).forEach(s => prr[s.responsable] = (prr[s.responsable] || 0) + 1);
+      return { abiertas:ab.length, vencidas:ab.filter(s => s.vencida).length, cerradas30:cerr.length,
+        promedioDias: cerr.length ? cerr.reduce((a, s) => a + (Date.parse(s.cerrada) - Date.parse(s.creada)) / 864e5, 0) / cerr.length : null,
+        porEstado:pe, porFaena:ag('faena'), porContrato:ag('contrato'), porResponsable:Object.entries(prr).sort((a, b) => b[1] - a[1]) };
+    }
+  };
+})();
+
+arrancar();
+</script>
+</body>
+</html>
