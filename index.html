@@ -107,6 +107,17 @@ textarea{min-height:84px;resize:vertical}
 .dias{grid-row:1 / span 4;grid-column:2;align-self:center;text-align:right;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.95;min-width:64px}
 .dias small{display:block;font-family:'Barlow',sans-serif;font-size:12px;font-weight:500;color:var(--tinta2);margin-top:4px}
 .vencida .dias{color:var(--alerta)}
+.con-sel{display:grid;grid-template-columns:46px minmax(0,1fr)}
+.con-sel .sel{display:flex;align-items:center;justify-content:center;background:var(--sup);border:1px solid var(--linea);border-top:0;border-right:0;cursor:pointer}
+.con-sel .sel input{width:22px;height:22px;accent-color:var(--ok);cursor:pointer}
+.lote{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--ok) 12%,var(--sup));border-left:4px solid var(--ok);padding:10px 12px;margin:0 0 10px}
+.lote span{font-size:15px}
+.tipo-op:not(:has(input:checked)) span{display:none}
+.lote .botones{margin:0}
+details.mas{margin:4px 0 16px;border:1px solid var(--linea);background:var(--sup2);padding:0 12px}
+details.mas summary{cursor:pointer;padding:12px 0;font-weight:600;color:var(--tinta2)}
+details.mas[open]{padding-bottom:4px}
+.autocierre{background:var(--sup2);border-left:4px solid var(--info);padding:10px 12px;margin-top:12px;font-size:15px}
 
 /* Riel de estados */
 .riel{display:flex;gap:3px;margin-top:9px;max-width:420px}
@@ -717,7 +728,11 @@ function pintarLista(){
     $('#buscar', v).addEventListener('input', e => { clearTimeout(tb); tb = setTimeout(() => { S.texto = e.target.value.trim(); pintarLista(); }, 120); });
     const ch = $('#chkCerradas', v); if (ch) ch.addEventListener('change', e => { S.cerradas = e.target.checked; cargar(); });
     $('#btnRecargar', v).addEventListener('click', () => cargar(true));
-    $('#resultado', v).addEventListener('click', e => { const f = e.target.closest('.fila'); if (f) abrir(f.dataset.id); });
+    $('#resultado', v).addEventListener('click', e => {
+      if (e.target.closest('.sel, .lote')) return;
+      const f = e.target.closest('.fila'); if (f) abrir(f.dataset.id);
+    });
+    $('#resultado', v).addEventListener('change', e => { if (e.target.matches('[data-sel]')) pintarLote(); });
   }
   const items = filtrarCache();
   pintarPestanas();
@@ -725,8 +740,36 @@ function pintarLista(){
   const prox = items.filter(s => s.por_vencer).length;
   $('#resultado', v).innerHTML = `
     ${items.length ? `<p class="resumen">${plural(items.length, 'solicitud', 'solicitudes')}${venc ? `, <b>${venc} fuera de plazo</b>` : ''}${prox ? `, ${prox} por vencer` : ''}</p>` : ''}
-    <div class="lista">${items.length ? items.map(filaHTML).join('') : vacioHTML()}</div>`;
+    ${S.vista === 'pendientes' && items.some(s => s.aprobable) ? '<div class="lote" id="lote"></div>' : ''}
+    <div class="lista">${items.length ? items.map(s => S.vista === 'pendientes' && s.aprobable
+      ? `<div class="con-sel"><label class="sel" title="Seleccionar para aprobar"><input type="checkbox" data-sel="${esc(s.id)}" aria-label="Seleccionar ${esc(s.id)}"></label>${filaHTML(s)}</div>`
+      : filaHTML(s)).join('') : vacioHTML()}</div>`;
+  pintarLote();
   marcarActualizando(!!enCurso);
+}
+// Barra para aprobar varias solicitudes de una vez
+function pintarLote(){
+  const caja = $('#lote'); if (!caja) return;
+  const todas = $$('[data-sel]'), marcadas = todas.filter(c => c.checked);
+  caja.innerHTML = `<span><b>${plural(todas.length, 'solicitud', 'solicitudes')}</b> ${todas.length === 1 ? 'espera' : 'esperan'} tu aprobación</span>
+    <div class="botones">
+      <button class="btn chico" id="loteTodas" type="button">${marcadas.length === todas.length ? 'Quitar selección' : 'Seleccionar todas'}</button>
+      <button class="btn chico primario" id="loteAprobar" type="button" ${marcadas.length ? '' : 'disabled'}>Aprobar ${marcadas.length || ''}</button>
+    </div>`;
+  $('#loteTodas', caja).addEventListener('click', () => { const on = marcadas.length !== todas.length; todas.forEach(c => c.checked = on); pintarLote(); });
+  $('#loteAprobar', caja).addEventListener('click', async () => {
+    const ids = marcadas.map(c => c.dataset.sel);
+    const lista = (S.cache.items || []).filter(s => ids.indexOf(s.id) >= 0);
+    const total = lista.reduce((a, s) => a + (Number(s.monto) || 0), 0);
+    if (!confirm(`Vas a aprobar ${plural(ids.length, 'solicitud', 'solicitudes')} por ${fmtCLP(total)} en total:\n\n` + lista.map(s => `${s.id}  ${fmtCLP(s.monto)}  ${s.titulo}`).join('\n'))) return;
+    const b = $('#loteAprobar', caja); b.disabled = true; b.textContent = 'Aprobando…';
+    try {
+      const r = await llamar('aprobarLote', S.token, ids);
+      if (r.errores.length) aviso(`Aprobadas ${r.ok.length}. No se pudo: ` + r.errores.map(e => e.id + ' (' + e.msg + ')').join(', '), true);
+      else aviso(`Listo: ${plural(r.ok.length, 'solicitud aprobada', 'solicitudes aprobadas')}`);
+    } catch(e){}
+    cargar(true);
+  });
 }
 // Al volver a la app después de un rato, se actualiza sola
 document.addEventListener('visibilitychange', () => {
@@ -745,7 +788,7 @@ const RIEL_CORTO = { POR_VALIDAR: '1ª aprobación', POR_AUTORIZAR: 'Jefatura', 
 function rutaPara(s){ return s.ruta || S.boot.rutas[s.tipo] || []; }
 function posicionRiel(s){
   const r = rutaPara(s); let i = r.indexOf(s.estado), marca = 'actual';
-  if (s.estado === 'OBSERVADA' || s.estado === 'POR_ACEPTAR'){ i = r.indexOf(s.estado_previo || 'SOLICITADA'); marca = 'observada'; }
+  if (s.estado === 'OBSERVADA' || s.estado === 'POR_ACEPTAR'){ i = r.indexOf(s.estado_previo || r[0]); if (i < 0) i = 0; marca = 'observada'; }
   if (s.estado === 'RECHAZADA'){ i = r.indexOf(s.estado_previo); if (i < 0) i = Math.max(r.indexOf('POR_APROBAR'), r.indexOf('POR_AUTORIZAR'), r.indexOf('POR_VALIDAR')); marca = 'cortada'; }
   if (s.estado === 'ANULADA'){ i = -1; }
   if (s.estado === 'RECIBIDA') marca = 'hecho';
@@ -858,6 +901,7 @@ function pintarDetalle(s){
           ${s.alternativa.proveedor ? `<dt>Proveedor</dt><dd>${esc(s.alternativa.proveedor)}</dd>` : ''}</dl>` : ''}
       </section>` : ''}
     ${rielGrandeHTML(s)}
+    ${s.estado === 'ENTREGADA' && s.cierre_en_horas != null ? `<div class="autocierre">No hace falta confirmar la recepción: se cierra sola como recibida conforme ${s.cierre_en_horas ? 'en ' + fmtHoras(s.cierre_en_horas) : 'en la próxima revisión'}. Si llegó mal o incompleto, usa <b>Reportar problema con la entrega</b>.</div>` : ''}
     ${S.recienCreada === s.id ? `<div class="creada"><b>Solicitud creada.</b> Avisa al grupo para que quede a la vista; el link lleva directo a esta ficha.<div class="botones"><a class="btn primario" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div></div>` : ''}
     ${acc.length || s.puedeEditar ? `<section class="bloque ${acc.some(a => a.codigo !== 'ANULAR') ? 'turno' : ''}">
         <h3>${acc.some(a => a.codigo !== 'ANULAR') ? 'Pendiente de tu acción' : 'Opciones'}</h3>
@@ -871,7 +915,7 @@ function pintarDetalle(s){
     <section class="bloque">
       <h3>Contexto</h3>
       <dl class="datos">
-        <dt>Para qué y qué pasa si no llega</dt><dd>${esc(s.motivo)}</dd>
+        ${s.motivo ? `<dt>Para qué y qué pasa si no llega</dt><dd>${esc(s.motivo)}</dd>` : ''}
         ${s.area ? `<dt>Equipo o área</dt><dd>${esc(s.area)}</dd>` : ''}
         ${s.necesita_para ? `<dt>Se necesita para</dt><dd>${esc(fmtDia(s.necesita_para))}</dd>` : ''}
         <dt>Pidió</dt><dd>${esc(s.solicitante)}, ${esc(fmtFecha(s.creada))}</dd>
@@ -886,10 +930,11 @@ function pintarDetalle(s){
         <div class="h-cuando">${esc(fmtFecha(h.fecha))}</div>
         ${h.comentario ? `<div class="h-com">${esc(h.comentario)}</div>` : ''}</li>`).join('')}</ul>
       <form id="fCom"><label>Agregar comentario<textarea name="t" placeholder="Ej: El proveedor confirma despacho el jueves" required></textarea></label>
-      <div class="botones"><button class="btn" type="submit">Comentar</button><a class="btn" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div></form>
+      <div class="botones"><button class="btn" type="submit">Comentar</button><a class="btn" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a>${puedeCrear() ? '<button class="btn" type="button" id="btnRepetir">Repetir solicitud</button>' : ''}</div></form>
     </section>`);
   $$('[data-acc]', inn).forEach(b => b.addEventListener('click', () => abrirAccion(s, acc[+b.dataset.acc])));
   const be = $('#btnEditar', inn); if (be) be.addEventListener('click', () => pintarNueva(s));
+  const br = $('#btnRepetir', inn); if (br) br.addEventListener('click', () => pintarNueva(s, true));
   $('#fCom', inn).addEventListener('submit', async ev => {
     ev.preventDefault(); const bt = ev.target.querySelector('button'); bt.disabled = true;
     try { S.detalle = await llamar('comentar', S.token, s.id, new FormData(ev.target).get('t')); pintarDetalle(S.detalle); aviso('Comentario agregado'); }
@@ -1014,19 +1059,26 @@ function tablaItemsHTML(items){
       ? `<td class="num">${Number(i.precio) > 0 ? esc(fmtCLP(i.precio)) : ''}</td><td class="num">${sub(i) ? esc(fmtCLP(Math.round(sub(i)))) : ''}</td>` : ''}</tr>`).join('')}</tbody>
     ${conPrecio ? `<tfoot><tr><th colspan="4" class="num">Total ítems</th><th class="num">${esc(fmtCLP(Math.round(total)))}</th></tr></tfoot>` : ''}</table></div>`;
 }
+function puedeCrear(){ return !!(S.boot && S.boot.faenas && S.boot.faenas.length); }
 function contratosDe(faena){ return S.boot.contratos.filter(c => c.faenas.indexOf('TODAS') >= 0 || c.faenas.indexOf(faena) >= 0); }
-function pintarNueva(ed){
+// ed: solicitud a editar, o a copiar si copia = true ("Repetir solicitud")
+function pintarNueva(ed, copia){
   const b = S.boot;
-  const editando = !!(ed && ed.id);
-  const faena = editando ? ed.faena : (S.faena || (b.faenas[0] && b.faenas[0].codigo) || '');
+  const editando = !!(ed && ed.id) && !copia;
+  const pre = ed && (editando || copia) ? ed : null;
+  const existe = (lista, v) => v && lista.some(x => x.codigo === v);
+  const faena = pre && existe(b.faenas, pre.faena) ? pre.faena
+    : (S.faena || (existe(b.faenas, almacen.get('abs_ult_faena')) ? almacen.get('abs_ult_faena') : (b.faenas[0] && b.faenas[0].codigo)) || '');
   const min = new Date().toISOString().slice(0, 10);
-  const tipoSel = editando ? ed.tipo : Object.keys(b.tipos)[0];
-  const val = k => editando ? esc(ed[k] || '') : '';
-  const prioSel = editando ? ed.prioridad : 'Normal';
+  const ultTipo = almacen.get('abs_ult_tipo');
+  const tipoSel = pre && b.tipos[pre.tipo] ? pre.tipo : (ultTipo && b.tipos[ultTipo] ? ultTipo : (b.tipos.COMPRA ? 'COMPRA' : Object.keys(b.tipos)[0]));
+  const val = k => pre ? esc(pre[k] || '') : '';
+  const prioSel = pre ? pre.prioridad : 'Normal';
   const fechaVal = editando && ed.necesita_para ? new Date(ed.necesita_para).toISOString().slice(0, 10) : '';
+  const masAbierto = !!(pre && (pre.area || fechaVal));
   const MAXF = maxFotos();
   const inn = pintarHoja(`
-    <div class="cab"><h2 class="det-titulo" style="margin:0">${editando ? 'Editar ' + esc(ed.id) : 'Nueva solicitud'}</h2><button class="cerrar" aria-label="Cerrar">×</button></div>
+    <div class="cab"><h2 class="det-titulo" style="margin:0">${editando ? 'Editar ' + esc(ed.id) : copia ? 'Repetir ' + esc(ed.id) : 'Nueva solicitud'}</h2><button class="cerrar" aria-label="Cerrar">×</button></div>
     <form id="fNueva" style="margin-top:16px">
       <div class="dos">
         <label>Faena<select name="faena" id="nFaena" required ${editando ? 'disabled' : ''}>${b.faenas.map(f => `<option value="${esc(f.codigo)}" ${f.codigo === faena ? 'selected' : ''}>${esc(f.codigo)} ${esc(f.nombre)}</option>`).join('')}</select></label>
@@ -1045,17 +1097,20 @@ function pintarNueva(ed){
           <label>Monto total <span class="opc">(opcional)</span><input name="monto" inputmode="numeric" placeholder="CLP neto"></label>
         </div>
       </div>`}
-      <label>Qué necesitas<input name="titulo" required maxlength="90" value="${val('titulo')}" placeholder="Ej: Gata tijera para camioneta 97"></label>
-      <div class="dos">
-        <label>Equipo o área <span class="opc">(opcional)</span><input name="area" value="${val('area')}" placeholder="Ej: Camioneta 97, losa de lavado"></label>
-        <label>Se necesita para <span class="opc">(opcional)</span><input type="date" name="necesita_para" value="${fechaVal}" ${editando ? '' : `min="${min}"`}></label>
-      </div>
-      <div class="grupo-titulo">Prioridad</div>
-      <div class="segmento" role="radiogroup" aria-label="Prioridad" style="margin-bottom:16px">${b.prioridades.map(p => `<label><input type="radio" name="prioridad" value="${esc(p)}" ${p === prioSel ? 'checked' : ''}><span>${esc(p)}</span></label>`).join('')}</div>
-      <div class="grupo-titulo">Ítems</div>
+      <div class="grupo-titulo">Qué necesitas</div>
       <div id="items"></div>
       <button type="button" class="btn chico" id="masItem" style="margin:2px 0 16px">Agregar ítem</button>
-      <label>Para qué es y qué pasa si no llega<textarea name="motivo" required placeholder="Ej: La gata actual es muy alta y no sirve en terreno. Sin ella no se puede cambiar un neumático en faena.">${val('motivo')}</textarea></label>
+      <div class="grupo-titulo">Prioridad</div>
+      <div class="segmento" role="radiogroup" aria-label="Prioridad" style="margin-bottom:16px">${b.prioridades.map(p => `<label><input type="radio" name="prioridad" value="${esc(p)}" ${p === prioSel ? 'checked' : ''}><span>${esc(p)}</span></label>`).join('')}</div>
+      <label>Para qué es y qué pasa si no llega <span class="opc" id="motivoOpc">(opcional; obligatorio si es crítica)</span><textarea name="motivo" placeholder="Ej: La gata actual es muy alta y no sirve en terreno. Sin ella no se puede cambiar un neumático en faena.">${val('motivo')}</textarea></label>
+      <details class="mas" ${masAbierto ? 'open' : ''}>
+        <summary>Más detalles (opcional): título, equipo, fecha</summary>
+        <label>Título <span class="opc">(si lo dejas vacío se usa el primer ítem)</span><input name="titulo" maxlength="90" value="${val('titulo')}" placeholder="Ej: Gata tijera para camioneta 97"></label>
+        <div class="dos">
+          <label>Equipo o área<input name="area" value="${val('area')}" placeholder="Ej: Camioneta 97, losa de lavado"></label>
+          <label>Se necesita para<input type="date" name="necesita_para" value="${fechaVal}" ${editando ? '' : `min="${min}"`}></label>
+        </div>
+      </details>
       <div class="grupo-titulo">Fotos de referencia <span class="opc">(opcional, hasta ${MAXF})</span></div>
       <div class="foto-campo">
         <input type="file" id="fotoCam" class="oculto" accept="image/*" capture="environment" tabindex="-1">
@@ -1073,7 +1128,9 @@ function pintarNueva(ed){
   const llenarContratos = () => {
     if (!selC) return;
     const cs = contratosDe(selF.value);
-    const pref = editando ? ed.contrato : ((b.usuario.contratos || []).find(k => cs.some(c => c.codigo === k)) || '');
+    const ult = almacen.get('abs_ult_contrato');
+    const pref = pre && cs.some(c => c.codigo === pre.contrato) ? pre.contrato
+      : ((b.usuario.contratos || []).find(k => cs.some(c => c.codigo === k)) || (cs.some(c => c.codigo === ult) ? ult : ''));
     selC.innerHTML = cs.map(c => `<option value="${esc(c.codigo)}" ${c.codigo === pref ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('') || '<option value="">Sin contratos en esta faena</option>';
   };
   selF.addEventListener('change', llenarContratos); llenarContratos();
@@ -1084,9 +1141,17 @@ function pintarNueva(ed){
   }
   const items = $('#items', inn);
   const agregar = it => filaItem(items, it);
-  if (editando && ed.items && ed.items.length) ed.items.forEach(agregar); else agregar();
+  if (pre && pre.items && pre.items.length) pre.items.forEach(agregar); else agregar();
+  // Motivo obligatorio solo para prioridad crítica
+  const motivo = inn.querySelector('[name=motivo]'), motivoOpc = $('#motivoOpc', inn);
+  const verMotivo = () => {
+    const p = inn.querySelector('[name=prioridad]:checked'); const crit = p && p.value === 'Crítica';
+    motivo.required = crit; motivoOpc.textContent = crit ? '(obligatorio por ser crítica)' : '(opcional; obligatorio si es crítica)';
+  };
+  $$('[name=prioridad]', inn).forEach(r => r.addEventListener('change', verMotivo)); verMotivo();
+  if (!pre) setTimeout(() => { const d = items.querySelector('[name=desc]'); if (d) d.focus(); }, 50);
   $('#masItem', inn).addEventListener('click', () => agregar().querySelector('[name=desc]').focus());
-  $('.cerrar-n', inn).addEventListener('click', () => editando ? abrir(ed.id) : cerrarHoja());
+  $('.cerrar-n', inn).addEventListener('click', () => pre ? abrir(ed.id) : cerrarHoja());
 
   // Fotos: las que ya tiene la solicitud (URL) y las nuevas (data URL), hasta MAXF en total
   const fotosActuales = editando ? fotosDe(ed).slice() : [];
@@ -1145,7 +1210,10 @@ function pintarNueva(ed){
       }
       let s;
       if (editando){ s = await llamar('editar', S.token, ed.id, d); aviso('Cambios guardados'); }
-      else { s = await llamar('crear', S.token, d); S.recienCreada = s.id; }
+      else {
+        s = await llamar('crear', S.token, d); S.recienCreada = s.id;
+        almacen.set('abs_ult_tipo', d.tipo || ''); almacen.set('abs_ult_faena', d.faena || ''); if (d.contrato) almacen.set('abs_ult_contrato', d.contrato);
+      }
       S.detalle = s; pintarDetalle(s); actualizarEnCache(s); cargar(true);
     } catch(e){ bt.disabled = false; bt.textContent = texto; }
   });
@@ -1224,7 +1292,8 @@ function dibujarPanel(p){
 const DEMO = (() => {
   const ESTADOS = { SOLICITADA:'Solicitada', COTIZANDO:'Cotizando', POR_VALIDAR:'Esperando primera aprobación', POR_APROBAR:'Esperando firma cliente', POR_AUTORIZAR:'Esperando autorización jefatura', APROBADA:'Aprobada', EN_COMPRA:'En compra', ENTREGADA:'Entregada', RECIBIDA:'Recibida conforme', OBSERVADA:'Falta información', RECHAZADA:'Rechazada', ANULADA:'Anulada' };
   const TIPOS = { EMERGENTE:'Emergente', COMPRA:'Compra MITT', BODEGA:'Retiro de bodega' };
-  const RUTAS = { EMERGENTE:['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','APROBADA','EN_COMPRA','ENTREGADA','RECIBIDA'], COMPRA:['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','APROBADA','EN_COMPRA','ENTREGADA','RECIBIDA'], BODEGA:['SOLICITADA','ENTREGADA','RECIBIDA'] };
+  const RUTAS = { EMERGENTE:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','EN_COMPRA','ENTREGADA','RECIBIDA'], COMPRA:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','EN_COMPRA','ENTREGADA','RECIBIDA'], BODEGA:['SOLICITADA','ENTREGADA','RECIBIDA'] };
+  const CIERRE_H = 48;
   const UMBRAL = 200000;
   const MAXF = 3;
   const AVISO_H = 24;
@@ -1236,7 +1305,7 @@ const DEMO = (() => {
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_VALIDAR', a: 'RECHAZADA', etiqueta: 'Rechazar', requiere: ['comentario'], peligro: true },
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_AUTORIZAR', a: 'SIGUIENTE', etiqueta: 'Autorizar compra', requiere: [] },
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'POR_AUTORIZAR', a: 'RECHAZADA', etiqueta: 'No autorizar', requiere: ['comentario'], peligro: true },
-    { tipos: ['EMERGENTE'], de: 'POR_APROBAR', a: 'APROBADA', etiqueta: 'Subir respaldo firmado', requiere: ['respaldo'], opcional: ['n_emergente'] },
+    { tipos: ['EMERGENTE'], de: 'POR_APROBAR', a: 'SIGUIENTE', etiqueta: 'Subir respaldo firmado', requiere: ['respaldo'], opcional: ['n_emergente'] },
     { tipos: ['EMERGENTE'], de: 'POR_APROBAR', a: 'RECHAZADA', etiqueta: 'Cliente no aprobó', requiere: ['comentario'], peligro: true },
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'APROBADA', a: 'EN_COMPRA', etiqueta: 'Salir a comprar', requiere: [] },
     { tipos: ['BODEGA'], de: 'SOLICITADA', a: 'ENTREGADA', etiqueta: 'Entregar desde bodega', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] },
@@ -1245,7 +1314,10 @@ const DEMO = (() => {
   ];
   function rutaDe(s){
     let r = (RUTAS[s.tipo] || []).slice(); const m = Number(s.monto) || 0;
+    if (s.estado === 'SOLICITADA' && r[0] === 'COTIZANDO') r.unshift('SOLICITADA');
+    if (s.estado === 'APROBADA') r.splice(r.indexOf('EN_COMPRA'), 0, 'APROBADA');
     if (m > 0 && m <= UMBRAL && s.estado !== 'POR_AUTORIZAR') r = r.filter(x => x !== 'POR_AUTORIZAR');
+    if (s.estado === 'POR_VALIDAR' && s.autorizado_por) r = r.filter(x => x !== 'POR_AUTORIZAR');
     if (s.tipo === 'EMERGENTE' && s.respaldo_url && s.estado !== 'POR_APROBAR') r = r.filter(x => x !== 'POR_APROBAR');
     return r;
   }
@@ -1255,7 +1327,7 @@ const DEMO = (() => {
     return base;
   }
   const CERR = ['RECIBIDA','RECHAZADA','ANULADA'];
-  const SLA = { SOLICITADA:1, COTIZANDO:2, POR_VALIDAR:1, POR_APROBAR:2, POR_AUTORIZAR:1, APROBADA:1, EN_COMPRA:3, ENTREGADA:2, OBSERVADA:2 };
+  const SLA = { SOLICITADA:1, COTIZANDO:3, POR_VALIDAR:1, POR_APROBAR:2, POR_AUTORIZAR:1, APROBADA:1, EN_COMPRA:3, ENTREGADA:2, OBSERVADA:2 };
   const US = [
     { id:'11111111-1', nombre:'Administrador (ejemplo)', roles:['ADMIN','SOLICITANTE'], faenas:['TODAS'], contratos:['FIN-CAEX-DMH'] },
     { id:'U2', nombre:'Expeditor DMH', roles:['COTIZADOR','COMPRADOR'], faenas:['DMH'] },
@@ -1272,26 +1344,26 @@ const DEMO = (() => {
   const hace = d => new Date(Date.now() - d * 864e5).toISOString();
   const base = (o) => Object.assign({ respaldo_url:'', entrega_url:'', validado_por:'', autorizado_por:'', area:'', prioridad:'Normal', necesita_para:'', foto_url:'', estado_previo:'', monto:'', proveedor:'', cotizacion_url:'', n_emergente:'', aprobado_por:'', comprado_por:'', entregado_a:'', recibido_por:'', cerrada:'' }, o);
   let sols = [
-    base({ id:'DMH-0007', creada:hace(11), faena:'DMH', contrato:'MITT', tipo:'COMPRA', prioridad:'Alta', area:'Camioneta 97', titulo:'Gata tijera para camioneta 97', items:[{cantidad:1,unidad:'un',descripcion:'Gata tijera baja, apta para terreno'}], motivo:'La gata actual es muy alta y no se adapta a las condiciones de terreno.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'SOLICITADA', estado_desde:hace(11) }),
+    base({ id:'DMH-0007', creada:hace(11), faena:'DMH', contrato:'MITT', tipo:'COMPRA', prioridad:'Alta', area:'Camioneta 97', titulo:'Gata tijera para camioneta 97', items:[{cantidad:1,unidad:'un',descripcion:'Gata tijera baja, apta para terreno'}], motivo:'La gata actual es muy alta y no se adapta a las condiciones de terreno.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'COTIZANDO', estado_desde:hace(11) }),
     base({ id:'DMH-0008', creada:hace(11), faena:'DMH', contrato:'KOM-PALA-DMH', tipo:'BODEGA', prioridad:'Crítica', area:'Trabajador turno B', titulo:'Respirador talla L', items:[{cantidad:1,unidad:'un',descripcion:'Respirador medio rostro talla L'}], motivo:'Trabajador sin respirador de su talla; no puede ingresar a zonas con exposición.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'SOLICITADA', estado_desde:hace(11), necesita_para:hace(10) }),
     base({ id:'DMH-0005', creada:hace(16), faena:'DMH', contrato:'KOM-PALA-DMH', tipo:'COMPRA', prioridad:'Alta', titulo:'Palas chicas punta plana', items:[{cantidad:2,unidad:'un',descripcion:'Pala chica punta plana'},{cantidad:2,unidad:'un',descripcion:'Pala cuadrada chica'}], motivo:'Solicitud hecha hace varios turnos. Cliente levantó tarjeta verde interna.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'EN_COMPRA', estado_desde:hace(13), monto:38500, proveedor:'Sodimac Calama', validado_por:'Validador DMH', comprado_por:'Expeditor DMH' }),
     base({ id:'DMH-0011', creada:hace(2), faena:'DMH', contrato:'MITT', tipo:'COMPRA', area:'Retroexcavadora', titulo:'Baliza imantada naranja', items:[{cantidad:1,unidad:'un',descripcion:'Baliza LED imantada color naranja 12-24V'}], motivo:'Baliza de retro quemada. Equipo no puede circular en faena sin baliza.', solicitante_id:'U8', solicitante:'Supervisores Turno', estado:'COTIZANDO', estado_desde:hace(1.5) }),
     base({ id:'DMH-0012', creada:hace(7), faena:'DMH', contrato:'MITT', tipo:'COMPRA', area:'Losa de lavado', titulo:'Manómetros de acero inoxidable 20 bar', items:[{cantidad:2,unidad:'un',descripcion:'Manómetro acero inoxidable 20 bar, conexión 1/4"'}], motivo:'Para turno próxima semana. Sin manómetro no se puede verificar presión de lavado.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'POR_VALIDAR', estado_desde:hace(0.4), monto:184000, proveedor:'Ferretería industrial Calama' }),
     base({ id:'DMH-0014', creada:hace(3), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'COMPRA', prioridad:'Alta', area:'Losa de lavado', titulo:'Kit de reparación bomba hidrolavadora', items:[{cantidad:1,unidad:'juego',descripcion:'Kit sellos y válvulas bomba triplex 200 bar'}], motivo:'Bomba pierde presión; sin reparación se detiene el lavado de CAEX.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'POR_AUTORIZAR', estado_desde:hace(0.5), monto:465000, proveedor:'Distribuidor Kärcher Antofagasta', validado_por:'Validador DMH' }),
-    base({ id:'DMH-0013', creada:hace(0.3), faena:'DMH', contrato:'MITT', tipo:'EMERGENTE', area:'Baño varones Finning', titulo:'Monomando lavatorio y tornillos', items:[{cantidad:1,unidad:'un',descripcion:'Llave monomando lavatorio'},{cantidad:200,unidad:'un',descripcion:'Tornillo madera 1 5/8"'},{cantidad:200,unidad:'un',descripcion:'Tornillo punta broca 1 5/8"'}], motivo:'Llave actual en mal estado; tornillos para trabajos normales del contrato.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'OBSERVADA', estado_previo:'SOLICITADA', estado_desde:hace(0.2) }),
+    base({ id:'DMH-0013', creada:hace(0.3), faena:'DMH', contrato:'MITT', tipo:'EMERGENTE', area:'Baño varones Finning', titulo:'Monomando lavatorio y tornillos', items:[{cantidad:1,unidad:'un',descripcion:'Llave monomando lavatorio'},{cantidad:200,unidad:'un',descripcion:'Tornillo madera 1 5/8"'},{cantidad:200,unidad:'un',descripcion:'Tornillo punta broca 1 5/8"'}], motivo:'Llave actual en mal estado; tornillos para trabajos normales del contrato.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'OBSERVADA', estado_previo:'COTIZANDO', estado_desde:hace(0.2) }),
     base({ id:'DMH-0003', creada:hace(21), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'BODEGA', titulo:'Pintacal para demarcación', items:[{cantidad:6,unidad:'saco',descripcion:'Pintacal'}], motivo:'Demarcación de áreas de la losa.', solicitante_id:'U8', solicitante:'Supervisores Turno', estado:'RECIBIDA', estado_desde:hace(13), cerrada:hace(13), entregado_a:'Supervisor turno A', recibido_por:'Supervisores Turno' }),
     base({ id:'CHUQUI-0001', creada:hace(3), faena:'CHUQUI', contrato:'MITT', tipo:'BODEGA', titulo:'Huincha aisladora verde, color del mes', items:[{cantidad:6,unidad:'rollo',descripcion:'Huincha aisladora verde'}], motivo:'Marcaje de herramientas del mes.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'ENTREGADA', estado_desde:hace(1), entregado_a:'Bodega turno B' })
   ];
   let hist = [
-    { fecha:hace(11), id:'DMH-0007', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
+    { fecha:hace(11), id:'DMH-0007', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
     { fecha:hace(16), id:'DMH-0005', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
     { fecha:hace(14), id:'DMH-0005', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'APROBADA', comentario:'' },
     { fecha:hace(13), id:'DMH-0005', usuario:'Expeditor DMH', accion:'Salir a comprar', de:'APROBADA', a:'EN_COMPRA', comentario:'Sin stock en Calama, se pidió a Antofagasta.' },
     { fecha:hace(3), id:'DMH-0014', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
     { fecha:hace(1), id:'DMH-0014', usuario:'Expeditor DMH', accion:'Enviar a aprobación', de:'COTIZANDO', a:'POR_VALIDAR', comentario:'' },
     { fecha:hace(0.5), id:'DMH-0014', usuario:'Validador DMH', accion:'Aprobar y enviar a jefatura', de:'POR_VALIDAR', a:'POR_AUTORIZAR', comentario:'Repuesto original, precio revisado.' },
-    { fecha:hace(0.3), id:'DMH-0013', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
-    { fecha:hace(0.2), id:'DMH-0013', usuario:'Expeditor DMH', accion:'Pedir más información', de:'SOLICITADA', a:'OBSERVADA', comentario:'No hay pedido formal con cotización y firma. Falta levantamiento firmado.' }
+    { fecha:hace(0.3), id:'DMH-0013', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
+    { fecha:hace(0.2), id:'DMH-0013', usuario:'Expeditor DMH', accion:'Pedir más información', de:'COTIZANDO', a:'OBSERVADA', comentario:'No hay pedido formal con cotización y firma. Falta levantamiento firmado.' }
   ];
   let seq = { DMH:14, CHUQUI:1, DRT:0, DGM:0 };
   const listaFotos = v => String(v || '').split(/\s*\n\s*/).filter(Boolean);
@@ -1319,9 +1391,10 @@ const DEMO = (() => {
       }
       out.push({ codigo:'T:' + destino, etiqueta, requiere:t.requiere, opcional:t.opcional || [], peligro:!!t.peligro });
     });
+    if (s.estado === 'POR_VALIDAR' && (Number(s.monto) || 0) > UMBRAL && !s.autorizado_por && !propia) out.push({ codigo:'PREAUTORIZAR', etiqueta:'Autorizar como jefatura (queda esperando la primera aprobación)', requiere:[], opcional:[], peligro:false });
     if (s.estado !== 'OBSERVADA' && s.estado !== 'ENTREGADA' && rol && rol !== 'SOLICITANTE') out.push({ codigo:'OBSERVAR', etiqueta:'Pedir más información', requiere:['comentario'], opcional:[], peligro:false });
     if (s.estado === 'OBSERVADA') out.push({ codigo:'REENVIAR', etiqueta:'Responder y reenviar', requiere:['comentario'], opcional:[], peligro:false });
-    if (ir >= 1) out.push({ codigo:'RETROCEDER', etiqueta:'Devolver a ' + ({ SOLICITADA:'solicitada', COTIZANDO:'cotización', POR_VALIDAR:'primera aprobación', POR_AUTORIZAR:'autorización de jefatura', POR_APROBAR:'firma del cliente', APROBADA:'aprobada', EN_COMPRA:'en compra' }[ruta[ir - 1]] || ESTADOS[ruta[ir - 1]].toLowerCase()), requiere:['comentario'], opcional:[], peligro:false });
+    if (ir >= 1) out.push({ codigo:'RETROCEDER', etiqueta: s.estado === 'ENTREGADA' ? 'Reportar problema con la entrega' : 'Devolver a ' + ({ SOLICITADA:'solicitada', COTIZANDO:'cotización', POR_VALIDAR:'primera aprobación', POR_AUTORIZAR:'autorización de jefatura', POR_APROBAR:'firma del cliente', APROBADA:'aprobada', EN_COMPRA:'en compra' }[ruta[ir - 1]] || ESTADOS[ruta[ir - 1]].toLowerCase()), requiere:['comentario'], opcional:[], peligro:false });
     out.push({ codigo:'ANULAR', etiqueta:'Anular solicitud', requiere:['comentario'], opcional:[], peligro:true });
     return out;
   }
@@ -1340,7 +1413,9 @@ const DEMO = (() => {
     o.fotos = listaFotos(s.foto_url);
     o.dias_totales = Math.floor(((cerr && s.cerrada ? Date.parse(s.cerrada) : Date.now()) - Date.parse(s.creada)) / 864e5);
     o.ruta = rutaDe(s); o.acciones = acciones(s); o.esMia = s.solicitante_id === yo.id || (yo.contratos || []).includes(s.contrato); o.meToca = o.acciones.some(a => a.codigo !== 'ANULAR');
-    o.puedeEditar = ['SOLICITADA','OBSERVADA'].includes(s.estado);
+    if (s.estado === 'ENTREGADA'){ o.vencida = false; o.por_vencer = false; o.horas_para_vencer = null; o.meToca = false; o.cierre_en_horas = Math.max(0, Math.round((desde + CIERRE_H * 36e5 - Date.now()) / 36e5)); }
+    o.aprobable = ['POR_VALIDAR','POR_AUTORIZAR'].includes(s.estado) && o.acciones.some(a => a.codigo === 'PREAUTORIZAR' || (a.codigo.startsWith('T:') && a.codigo !== 'T:RECHAZADA' && !a.requiere.length));
+    o.puedeEditar = ['SOLICITADA','OBSERVADA'].includes(s.estado) || (s.estado === 'COTIZANDO' && !(Number(s.monto) > 0));
     return o;
   }
   const contratos = [
@@ -1377,8 +1452,10 @@ const DEMO = (() => {
       const o = ser(s); o.historial = hist.filter(h => h.id === id).sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha)); return o;
     },
     crear(t, d){
-      if (!d.titulo || d.titulo.trim().length < 4) throw new Error('Escribe en el título qué necesitas.');
-      if (!d.motivo || d.motivo.trim().length < 5) throw new Error('Explica para qué es y qué pasa si no llega.');
+      if (!d.items || !d.items.length) throw new Error('Agrega al menos un ítem con descripción.');
+      if (!d.titulo || !d.titulo.trim()) d.titulo = d.items[0].descripcion + (d.items.length > 1 ? ' y ' + (d.items.length - 1) + (d.items.length === 2 ? ' ítem más' : ' ítems más') : '');
+      if (d.prioridad === 'Crítica' && (!d.motivo || d.motivo.trim().length < 5)) throw new Error('Si es crítica, explica para qué es y qué pasa si no llega.');
+      d.motivo = d.motivo || '';
       const fotos = fotosEntrantes(d);
       if (fotos.length > MAXF) throw new Error('Puedes adjuntar hasta ' + MAXF + ' fotos por solicitud.');
       seq[d.faena] = (seq[d.faena] || 0) + 1;
@@ -1386,7 +1463,7 @@ const DEMO = (() => {
       sols.push(base({ id, creada:ahora, faena:d.faena, contrato:d.contrato, tipo:d.tipo, prioridad:d.prioridad, area:d.area || '', titulo:d.titulo.trim(),
         necesita_para: d.necesita_para ? new Date(d.necesita_para + 'T12:00:00').toISOString() : '',
         items:d.items.map(i => ({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() })), motivo:d.motivo.trim(), foto_url:fotos.join('\n'),
-        solicitante_id:yo.id, solicitante:yo.nombre, estado:'SOLICITADA', estado_desde:ahora, n_emergente:d.n_emergente || '',
+        solicitante_id:yo.id, solicitante:yo.nombre, estado: d.tipo === 'BODEGA' ? 'SOLICITADA' : 'COTIZANDO', estado_desde:ahora, n_emergente:d.n_emergente || '',
         monto: Number(String(d.monto || '').replace(/\D/g, '')) || '' }));
       const nueva = sols[sols.length - 1];
       if (d.tipo === 'EMERGENTE' && d.respaldo){ if (!(Number(nueva.monto) > 0)){ sols.pop(); throw new Error('Para subir el emergente firmado indica el monto total.'); } nueva.respaldo_url = d.respaldo; nueva.estado = 'POR_VALIDAR'; nueva.aprobado_por = yo.nombre; }
@@ -1402,17 +1479,20 @@ const DEMO = (() => {
       if (d.respaldo) s.respaldo_url = d.respaldo;
       if (d.respaldo_entrega) s.entrega_url = d.respaldo_entrega;
       const de = s.estado; let a, nota = '';
+      if (de === 'COTIZANDO' || de === 'SOLICITADA'){ s.validado_por = ''; s.autorizado_por = ''; }
+      if (cod === 'PREAUTORIZAR'){ s.autorizado_por = yo.nombre; hist.push({ fecha:new Date().toISOString(), id, usuario:yo.nombre, accion:acc.etiqueta, de, a:de, comentario:(d.comentario || '').trim() }); return this.obtener(t, id); }
       if (cod.startsWith('T:')) a = cod.slice(2);
       else if (cod === 'OBSERVAR'){ s.estado_previo = de; a = 'OBSERVADA'; }
-      else if (cod === 'REENVIAR'){ a = s.estado_previo || 'SOLICITADA'; s.estado_previo = ''; }
-      else if (cod === 'RETROCEDER'){ const r = rutaDe(s); a = r[r.indexOf(de) - 1]; if (a === 'POR_VALIDAR') s.validado_por = ''; if (a === 'POR_AUTORIZAR') s.autorizado_por = ''; if (a === 'POR_APROBAR') s.aprobado_por = ''; if (a === 'APROBADA') s.comprado_por = ''; if (a === 'EN_COMPRA' || (a === 'SOLICITADA' && s.tipo === 'BODEGA')){ s.entregado_a = ''; s.entrega_url = ''; } }
+      else if (cod === 'REENVIAR'){ a = s.estado_previo || (s.tipo === 'BODEGA' ? 'SOLICITADA' : 'COTIZANDO'); s.estado_previo = ''; }
+      else if (cod === 'RETROCEDER'){ const r = rutaDe(s); a = r[r.indexOf(de) - 1]; if (a === 'POR_VALIDAR' || a === 'COTIZANDO'){ s.validado_por = ''; s.autorizado_por = ''; } if (a === 'POR_AUTORIZAR') s.autorizado_por = ''; if (a === 'POR_APROBAR') s.aprobado_por = ''; if (a === 'APROBADA') s.comprado_por = ''; if (a === 'EN_COMPRA' || (a === 'SOLICITADA' && s.tipo === 'BODEGA')){ s.entregado_a = ''; s.entrega_url = ''; } }
       else a = 'ANULADA';
       if (cod.startsWith('T:') && a !== 'RECHAZADA'){
         if (de === 'POR_VALIDAR') s.validado_por = yo.nombre; if (de === 'POR_AUTORIZAR') s.autorizado_por = yo.nombre; if (de === 'POR_APROBAR') s.aprobado_por = yo.nombre;
         if (de === 'POR_VALIDAR' && a !== 'POR_AUTORIZAR' && rutaDe(s).includes('POR_AUTORIZAR')){ s.autorizado_por = yo.nombre; nota = 'Primera aprobación y autorización de jefatura hechas por la misma persona (jefatura en reemplazo del validador).'; }
       }
       if (a === 'RECHAZADA') s.estado_previo = de;
-      if (a === 'EN_COMPRA') s.comprado_por = yo.nombre;
+      if (a === 'EN_COMPRA' && de === 'APROBADA' && cod.startsWith('T:')) s.comprado_por = yo.nombre;
+      if (a === 'ENTREGADA' && de === 'EN_COMPRA' && !s.comprado_por) s.comprado_por = yo.nombre;
       if (a === 'RECIBIDA') s.recibido_por = yo.nombre;
       s.estado = a; s.estado_desde = new Date().toISOString(); if (CERR.includes(a)) s.cerrada = s.estado_desde;
       hist.push({ fecha:s.estado_desde, id, usuario:yo.nombre, accion:acc.etiqueta, de, a, comentario:[(d.comentario || '').trim(), nota].filter(Boolean).join(' | ') });
@@ -1420,9 +1500,10 @@ const DEMO = (() => {
     },
     editar(t, id, d){
       const s = sols.find(x => x.id === id);
-      if (!['SOLICITADA','OBSERVADA'].includes(s.estado)) throw new Error('Ya no se puede editar.');
-      if (!d.titulo || d.titulo.trim().length < 4) throw new Error('Escribe en el título qué necesitas.');
-      if (!d.motivo || d.motivo.trim().length < 5) throw new Error('Explica para qué es y qué pasa si no llega.');
+      if (!ser(s).puedeEditar) throw new Error('Ya no se puede editar.');
+      if (!d.titulo || !d.titulo.trim()) d.titulo = (d.items[0] || {}).descripcion || '';
+      if (d.prioridad === 'Crítica' && (!d.motivo || d.motivo.trim().length < 5)) throw new Error('Si es crítica, explica para qué es y qué pasa si no llega.');
+      d.motivo = d.motivo || '';
       const items = d.items.map(i => ({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() }));
       const cambios = [];
       const ch = (k, n, v) => { if (JSON.stringify(s[k]) !== JSON.stringify(v)){ cambios.push(n); s[k] = v; } };
@@ -1439,6 +1520,16 @@ const DEMO = (() => {
       if (!cambios.length) throw new Error('No hiciste cambios.');
       hist.push({ fecha:new Date().toISOString(), id, usuario:yo.nombre, accion:'Editó la solicitud', de:'', a:'', comentario:'Cambió: ' + cambios.join(', ') });
       return this.obtener(t, id);
+    },
+    aprobarLote(t, ids){
+      const ok = [], errores = [];
+      ids.forEach(id => {
+        const s = sols.find(x => x.id === id); const o = s && ser(s);
+        const a = o && o.aprobable ? (o.acciones.find(x => x.codigo === 'PREAUTORIZAR') || o.acciones.find(x => x.codigo.startsWith('T:') && x.codigo !== 'T:RECHAZADA' && !x.requiere.length)) : null;
+        if (!a){ errores.push({ id, msg:'ya no está esperando tu aprobación' }); return; }
+        this.avanzar(t, id, a.codigo, {}); ok.push(id);
+      });
+      return { ok, errores };
     },
     comentar(t, id, txt){
       if (!String(txt || '').trim()) throw new Error('Escribe un comentario.');
