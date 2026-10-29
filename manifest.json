@@ -1,6 +1,8 @@
 {
   "name": "Abastecimiento MITT",
   "short_name": "Abastecimiento",
+  "id": "./",
+  "description": "Solicitudes de materiales de MITT: cada pedido con responsable, estado y plazo.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -421,11 +421,12 @@ function pintarLogin(msg){
       <label>PIN<input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="8"></label>
       <button class="btn primario ancho" type="submit">Ingresar</button>
     </form>
-    <div class="botones" style="margin-top:14px"><button class="btn ancho" id="btnRegistro" type="button">Solicitar acceso</button></div>
+    <div class="botones" style="margin-top:14px"><button class="btn ancho" id="btnRegistro" type="button">Solicitar acceso</button>${botonInstalarHTML()}</div>
     <p class="nota">${EN_GAS ? '¿Olvidaste tu PIN? Pide al administrador que lo restablezca; te dará uno temporal.' : 'Vista de demostración: usa cualquier RUT válido y cualquier PIN. Entras como administrador con datos de ejemplo.'}</p>
   </main>`;
   campoRut($('[name=rut]'));
   $('#btnRegistro').addEventListener('click', pintarRegistro);
+  const bi = $('#btnInstalar'); if (bi) bi.addEventListener('click', pintarInstalar);
   $('#fLogin').addEventListener('submit', async ev => {
     ev.preventDefault();
     const f = new FormData(ev.target), b = ev.target.querySelector('button');
@@ -524,10 +525,70 @@ function pintarCuenta(){
       <dt>Roles</dt><dd>${esc(u.roles.map(r => r.charAt(0) + r.slice(1).toLowerCase()).join(', '))}</dd>
       <dt>Faenas</dt><dd>${esc(S.boot.faenas.map(f => f.codigo).join(', '))}</dd></dl></section>
     <section class="bloque"><h3>Cambiar PIN</h3>${formPinHTML(true)}</section>
-    <div class="botones" style="margin-top:14px"><button class="btn peligro" id="btnSalirC">Cerrar sesión</button></div>`);
+    <div class="botones" style="margin-top:14px">${botonInstalarHTML()}<button class="btn peligro" id="btnSalirC">Cerrar sesión</button></div>`);
   conectarFormPin(inn, cerrarHoja);
+  const bi = $('#btnInstalar', inn); if (bi) bi.addEventListener('click', pintarInstalar);
   $('#btnSalirC', inn).addEventListener('click', async () => { try { await api('salir', S.token); } catch(e){} almacen.del('abs_token'); S.token = null; S.cache = null; S.panelCache = null; cerrarHoja(); pintarLogin(); });
 }
+
+/* ---------- Instalar como app (solo en la página de GitHub Pages) ---------- */
+const EN_PAGES = !!window.API_URL;
+const EQUIPO = (() => {
+  const u = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1)) return 'IOS';
+  return /Android/.test(u) ? 'ANDROID' : 'PC';
+})();
+const estaInstalada = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch(e){ return false; } };
+const puedeInstalar = () => EN_PAGES && !estaInstalada();
+// Chrome y Edge (Android y PC) ofrecen instalar con un clic: se guarda el aviso para usarlo en el botón
+let avisoInstalar = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); avisoInstalar = e; });
+window.addEventListener('appinstalled', () => { avisoInstalar = null; aviso('Listo: Abastecimiento quedó instalada como app'); });
+
+function guiaInstalarHTML(equipo, url, unClic){
+  const paso = l => `<ol style="margin:8px 0 0;padding-left:22px">${l.map(x => `<li style="margin-bottom:6px">${x}</li>`).join('')}</ol>`;
+  const atajo = `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk ${url}`;
+  const secciones = [
+    ['ANDROID', 'Celular Android', paso([
+      'Abre esta página en <b>Chrome</b>.',
+      'Toca el menú <b>⋮</b> (arriba a la derecha).',
+      'Toca <b>Instalar app</b> o <b>Agregar a pantalla principal</b>.',
+      'Confirma con <b>Instalar</b>. El ícono queda junto a tus otras apps.'])],
+    ['IOS', 'iPhone o iPad', paso([
+      'Abre esta página en <b>Safari</b>. Si la abriste desde WhatsApp o el correo, primero elige <b>Abrir en Safari</b>.',
+      'Toca <b>Compartir</b> (el cuadro con la flecha hacia arriba). En algunas versiones está dentro del menú <b>···</b>.',
+      'Baja en la lista y toca <b>Agregar a inicio</b>.',
+      'Toca <b>Agregar</b>. El ícono queda en la pantalla de inicio.'])],
+    ['PC', 'Computador', paso([
+      'Abre esta página en <b>Chrome</b> o <b>Edge</b>.',
+      '<b>Chrome:</b> menú <b>⋮</b> → <b>Transmitir, guardar y compartir</b> → <b>Instalar página como app</b>. <b>Edge:</b> menú <b>···</b> → <b>Aplicaciones</b> → <b>Instalar este sitio como una aplicación</b>. También sirve el ícono de instalar al final de la barra de direcciones.',
+      'Se abre en su propia ventana, sin barra del navegador, y queda un acceso en el escritorio y en el menú Inicio.']) +
+      `<h3 style="margin:16px 0 0">Modo kiosko (pantalla completa, para un PC fijo)</h3>` + paso([
+      'Clic derecho en el escritorio → <b>Nuevo</b> → <b>Acceso directo</b>.',
+      `Pega esto como ubicación:<input readonly value="${esc(atajo)}" style="font-size:13px;margin-top:6px" data-copiar>`,
+      'Nombre: <b>Abastecimiento</b> → <b>Finalizar</b>. Al abrirlo ocupa toda la pantalla y no muestra otras páginas.',
+      'Para salir: <b>Alt + F4</b>.']) +
+      `<p class="estado-linea" style="margin:8px 0 0">Usa Chrome: mantiene la sesión abierta. Edge en modo kiosko la borra cada vez que se cierra. Si Chrome está instalado en otra carpeta, ajusta la ruta.</p>`]
+  ];
+  const propio = secciones.filter(s => s[0] === equipo), otros = secciones.filter(s => s[0] !== equipo);
+  return `<div class="cab"><h2 class="det-titulo" style="margin:0">Instalar como app</h2><button class="cerrar" aria-label="Cerrar">×</button></div>
+    <p class="estado-linea" style="margin:10px 0 0">Queda con su ícono, se abre sin barra del navegador y entras con el mismo RUT y PIN.</p>
+    ${unClic ? '<div class="botones" style="margin-top:14px"><button class="btn primario" id="btnInstalarYa">Instalar ahora</button></div>' : ''}
+    ${propio.map(s => `<section class="bloque turno"><h3>En este equipo (${s[1]})</h3>${s[2]}</section>`).join('')}
+    ${otros.map(s => `<details class="bloque"><summary style="cursor:pointer;font-weight:700">${s[1]}</summary>${s[2]}</details>`).join('')}`;
+}
+function pintarInstalar(){
+  const inn = pintarHoja(guiaInstalarHTML(EQUIPO, location.href.split(/[?#]/)[0], !!avisoInstalar));
+  const ya = $('#btnInstalarYa', inn);
+  if (ya) ya.addEventListener('click', async () => {
+    if (!avisoInstalar) return;
+    avisoInstalar.prompt();
+    const r = await avisoInstalar.userChoice; avisoInstalar = null;
+    if (r && r.outcome === 'accepted') cerrarHoja(); else ya.remove();
+  });
+  $$('[data-copiar]', inn).forEach(i => i.addEventListener('focus', () => i.select()));
+}
+const botonInstalarHTML = () => puedeInstalar() ? '<button class="btn ancho" id="btnInstalar" type="button">Instalar como app</button>' : '';
 
 /* ---------- Arranque ---------- */
 async function arrancar(){
