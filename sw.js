@@ -1,6 +1,6 @@
 // Service worker: permite instalar la app en el celular. Siempre busca la versión más nueva en internet
 // y solo usa la copia guardada si no hay señal. Las llamadas a Apps Script (otro dominio) no pasan por aquí.
-const CACHE = 'abastecimiento-v1';
+const CACHE = 'abastecimiento-v2';
 const BASE = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(BASE.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
