@@ -99,6 +99,8 @@ textarea{min-height:84px;resize:vertical}
 .chip.critica{background:var(--alerta);border-color:var(--alerta);color:#fff}
 .chip.alta{border-color:var(--alerta);color:var(--alerta)}
 .chip.firmado{border-color:var(--ok);color:var(--ok)}
+.chip.fecha.porvencer{border-color:var(--senal);background:color-mix(in srgb,var(--senal) 22%,var(--sup));color:var(--tinta)}
+.chip.fecha.vencida{border-color:var(--alerta);background:var(--alerta);color:#fff;font-weight:600}
 .chip.ejemplo{background:var(--senal);border-color:var(--senal);color:var(--sobre-senal);font-weight:700}
 .ejemplo-txt,.aviso-caja{background:color-mix(in srgb,var(--senal) 18%,var(--sup));border-left:4px solid var(--senal);padding:10px 12px;margin-top:14px}
 .titulo{font-weight:600;font-size:17px;margin-top:2px}
@@ -399,6 +401,8 @@ function aviso(msg, error){
 
 /* ---------- Formatos ---------- */
 const fmtFecha = iso => { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('es-CL', { day:'numeric', month:'short' }) + ' ' + d.toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' }); };
+// Fecha corta: "28 oct" (con el año si no es el actual)
+const fmtCorta = iso => { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('es-CL', d.getFullYear() === new Date().getFullYear() ? { day:'numeric', month:'short' } : { day:'numeric', month:'short', year:'numeric' }); };
 const fmtDia = iso => iso ? new Date(iso).toLocaleDateString('es-CL', { weekday:'short', day:'numeric', month:'short' }) : '';
 const fmtCLP = v => v === '' || v == null ? '' : '$' + Number(v).toLocaleString('es-CL');
 const nomEstado = e => (S.boot && S.boot.estados[e]) || e;
@@ -810,8 +814,17 @@ function estadoLinea(s){
   if (esCerrada(s)) return `${esc(nomEstado(s.estado))} en ${plural(s.dias_totales, 'día', 'días')}`;
   return `${esc(nomEstado(s.estado))}. Pendiente por parte de <b>${esc(s.responsable || 'sin asignar')}</b>`;
 }
+// Fecha de la solicitud: gris a tiempo, amarilla por vencer y roja vencida (mismo criterio de plazo que la lista)
+function fechaChipHTML(s){
+  if (!s.creada) return '';
+  const abierta = !(S.boot && S.boot.cerrados.indexOf(s.estado) >= 0);
+  const clase = abierta && s.vencida ? 'vencida' : abierta && s.por_vencer ? 'porvencer' : '';
+  const nota = clase === 'vencida' ? (s.fuera_de_fecha ? ' · ya pasó la fecha en que se necesitaba' : ' · fuera de plazo') : clase === 'porvencer' ? ' · por vencer' : '';
+  return `<span class="chip fecha ${clase}" title="Pedida el ${esc(fmtFecha(s.creada) + nota)}">${esc(fmtCorta(s.creada))}</span>`;
+}
 function chipsHTML(s){
   return `<span class="id">${esc(s.id)}</span>
+    ${fechaChipHTML(s)}
     ${s.demo ? '<span class="chip ejemplo">EJEMPLO</span>' : ''}
     <span class="chip">${esc(s.contrato)}</span>
     <span class="chip">${esc(S.boot.tipos[s.tipo] || s.tipo)}</span>
