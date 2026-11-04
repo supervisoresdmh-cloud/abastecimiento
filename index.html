@@ -196,6 +196,8 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .dos{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .item{display:grid;grid-template-columns:76px 96px 1fr 40px;gap:6px;margin-bottom:6px}
 .item input,.item select{margin:0}
+.lev-buscar{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.lev-tarjeta{border:1px solid var(--linea);border-left:4px solid var(--info);padding:10px 12px;margin-top:12px}
 .quitar{border:1px solid var(--linea);background:var(--sup);border-radius:4px}
 .oculto{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .foto-campo{margin:0 0 16px}
@@ -368,7 +370,7 @@ const TIPOS_DOCUMENTO = ['application/pdf', 'application/vnd.openxmlformats-offi
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
 const ACEPTA_DOCS = 'image/*,.pdf,.xlsx,.xls,.docx,.doc,' + TIPOS_DOCUMENTO.join(',');
 const TIPO_INFO = {
-  EMERGENTE: 'Materiales de un trabajo emergente para el cliente. Pasa por primera aprobación (ADC o jefatura de construcción), jefatura de contrato si supera {UMBRAL}, y la firma del cliente.',
+  EMERGENTE: 'Materiales de un trabajo emergente para el cliente, cargados desde el tracker con el N° de levantamiento y el documento firmado por el cliente. Pasa por primera aprobación (ADC o jefatura de construcción) y jefatura de contrato si supera {UMBRAL}.',
   COMPRA: 'Herramientas, repuestos o equipos para MITT (ej. una gata para camioneta). Se cotiza, la aprueba el ADC o la jefatura de construcción y, si supera {UMBRAL}, también la jefatura de contrato.',
   BODEGA: 'Algo que ya debería estar en bodega o en Casa MITT.'
 };
@@ -883,8 +885,8 @@ function pintarDetalle(s){
     ['Monto cotizado', fmtCLP(s.monto)], ['Proveedor', s.proveedor],
     ['Archivo de cotización', s.cotizacion_archivo ? `<a href="${esc(s.cotizacion_archivo)}" target="_blank" rel="noopener">Ver cotización del proveedor</a>` : '', true],
     ['Link de cotización', s.cotizacion_url ? (/^https?:/i.test(s.cotizacion_url) ? `<a href="${esc(s.cotizacion_url)}" target="_blank" rel="noopener">Abrir link</a>` : esc(s.cotizacion_url)) : '', true],
-    ['N° emergente', s.n_emergente],
-    ['Respaldo firmado', s.respaldo_url ? `<a href="${esc(s.respaldo_url)}" target="_blank" rel="noopener">Ver documento firmado</a>` : '', true],
+    ['Levantamiento', s.n_emergente],
+    ['Firmado por el cliente', s.respaldo_url ? `<a href="${esc(s.respaldo_url)}" target="_blank" rel="noopener"><b>Ver documento firmado</b></a>` : '', true],
     ['Primera aprobación', s.validado_por],
     ['Autorizó jefatura', s.autorizado_por],
     [s.tipo === 'EMERGENTE' ? 'Respaldo cargado por' : 'Autorizó', s.aprobado_por], ['Compró', s.comprado_por],
@@ -1102,17 +1104,31 @@ function pintarNueva(ed, copia){
         : `<div class="grupo-titulo">Tipo de solicitud</div>
       <div class="tipos">${Object.keys(b.tipos).map(k => `<label class="tipo-op"><input type="radio" name="tipo" value="${k}" ${k === tipoSel ? 'checked' : ''}><div><b>${esc(b.tipos[k])}</b><span>${esc((TIPO_INFO[k] || '').replace('{UMBRAL}', fmtCLP(b.umbral || 200000)))}</span></div></label>`).join('')}</div>
       <div class="bloque" id="bloqueFirma" style="margin:0 0 16px">
-        <h3>¿Ya tienes el emergente firmado por el cliente?</h3>
-        <p class="estado-linea" style="margin:0 0 12px">Súbelo aquí con el monto total: se salta la cotización y la firma, y pasa directo a la aprobación interna. Si todavía no está firmado, déjalo vacío y lo subes después.</p>
-        <label>Documento firmado <span class="opc">(PDF o foto)</span><input type="file" name="respaldo" accept="application/pdf,image/*"></label>
-        <div class="dos">
-          <label>N° de emergente <span class="opc">(opcional)</span><input name="n_emergente"></label>
-          <label>Monto total <span class="opc">(opcional)</span><input name="monto" inputmode="numeric" placeholder="CLP neto"></label>
+        <h3>Levantamiento y documento firmado</h3>
+        <p class="estado-linea" style="margin:0 0 12px">Carga los materiales desde el tracker con el N° de levantamiento. Sin el documento firmado por el cliente no se puede crear el emergente.</p>
+        <div class="lev-buscar">
+          <label style="margin:0">N° de levantamiento<input name="n_emergente" id="nLev" placeholder="Ej: LEV-57" autocomplete="off"></label>
+          <button type="button" class="btn" id="cargarLev" style="margin:0">Cargar</button>
         </div>
+        <div id="levRes"></div>
+        <div id="montoLev" hidden style="margin-top:14px"><label>Monto total <span class="opc" id="montoLevOpc">(CLP neto)</span><input name="monto" id="nMonto" inputmode="numeric" placeholder="CLP neto"></label></div>
+        <div class="grupo-titulo">Documento firmado por el cliente (PDF o foto)</div>
+        <div class="foto-campo" id="firmaCampo">
+          ${TACTIL ? '<input type="file" name="respaldo" id="respaldoCam" class="oculto" accept="image/*" capture="environment" tabindex="-1">' : ''}
+          <input type="file" name="respaldo" id="respaldoArch" class="oculto" accept="application/pdf,image/*" tabindex="-1">
+          <div class="botones">
+            ${TACTIL ? '<label for="respaldoCam" class="btn" style="margin:0">Tomar foto</label>' : ''}
+            <label for="respaldoArch" class="btn" style="margin:0">${TACTIL ? 'Elegir archivo' : 'Subir foto o PDF'}</label>
+          </div>
+          <p class="estado-linea archivo-elegido" style="margin:8px 0 0"></p>
+        </div>
+        <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="declFirma" style="margin-top:3px"><span id="declTxt"></span></label>
       </div>`}
-      <div class="grupo-titulo">Qué necesitas</div>
-      <div id="items"></div>
-      <button type="button" class="btn chico" id="masItem" style="margin:2px 0 16px">Agregar ítem</button>
+      <div id="itemsManual">
+        <div class="grupo-titulo">Qué necesitas</div>
+        <div id="items"></div>
+        <button type="button" class="btn chico" id="masItem" style="margin:2px 0 16px">Agregar ítem</button>
+      </div>
       <div class="grupo-titulo">Prioridad</div>
       <div class="segmento" role="radiogroup" aria-label="Prioridad" style="margin-bottom:16px">${b.prioridades.map(p => `<label><input type="radio" name="prioridad" value="${esc(p)}" ${p === prioSel ? 'checked' : ''}><span>${esc(p)}</span></label>`).join('')}</div>
       <label>Para qué es y qué pasa si no llega <span class="opc" id="motivoOpc">(opcional; obligatorio si es crítica)</span><textarea name="motivo" placeholder="Ej: La gata actual es muy alta y no sirve en terreno. Sin ella no se puede cambiar un neumático en faena.">${val('motivo')}</textarea></label>
@@ -1147,11 +1163,6 @@ function pintarNueva(ed, copia){
     selC.innerHTML = cs.map(c => `<option value="${esc(c.codigo)}" ${c.codigo === pref ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('') || '<option value="">Sin contratos en esta faena</option>';
   };
   selF.addEventListener('change', llenarContratos); llenarContratos();
-  const bloqueFirma = $('#bloqueFirma', inn);
-  if (bloqueFirma){
-    const verFirma = () => { const t = inn.querySelector('[name=tipo]:checked'); bloqueFirma.hidden = !(t && t.value === 'EMERGENTE'); };
-    $$('[name=tipo]', inn).forEach(r => r.addEventListener('change', verFirma)); verFirma();
-  }
   const items = $('#items', inn);
   const agregar = it => filaItem(items, it);
   if (pre && pre.items && pre.items.length) pre.items.forEach(agregar); else agregar();
@@ -1165,6 +1176,7 @@ function pintarNueva(ed, copia){
   if (!pre) setTimeout(() => { const d = items.querySelector('[name=desc]'); if (d) d.focus(); }, 50);
   $('#masItem', inn).addEventListener('click', () => agregar().querySelector('[name=desc]').focus());
   $('.cerrar-n', inn).addEventListener('click', () => pre ? abrir(ed.id) : cerrarHoja());
+  const emergente = editando ? null : formEmergente(inn);
 
   // Fotos: las que ya tiene la solicitud (URL) y las nuevas (data URL), hasta MAXF en total
   const fotosActuales = editando ? fotosDe(ed).slice() : [];
@@ -1208,19 +1220,15 @@ function pintarNueva(ed, copia){
       titulo: f.get('titulo'), area: f.get('area'), necesita_para: f.get('necesita_para'), prioridad: f.get('prioridad'), motivo: f.get('motivo'),
       items: leerItems(items)
     };
+    const em = emergente && d.tipo === 'EMERGENTE' ? emergente.datos() : null;
+    if (em && em.error){ aviso(em.error, true); return; }
+    if (em) Object.assign(d, em.campos);
     if (!d.items.length){ aviso('Agrega al menos un ítem con descripción.', true); return; }
     const texto = bt.textContent; bt.disabled = true; bt.textContent = editando ? 'Guardando…' : 'Creando…';
     try {
       d.fotos = fotosNuevas.slice();
       if (editando) d.fotos_mantener = fotosActuales.slice();
-      if (!editando && d.tipo === 'EMERGENTE'){
-        d.n_emergente = f.get('n_emergente') || ''; d.monto = f.get('monto') || '';
-        const r = f.get('respaldo');
-        if (r && r.size){
-          if (!(Number(String(d.monto).replace(/\D/g, '')) > 0)){ aviso('Para subir el emergente firmado indica el monto total.', true); bt.disabled = false; bt.textContent = texto; return; }
-          d.respaldo = await leerArchivo(r);
-        }
-      }
+      if (em) d.respaldo = await leerArchivo(em.archivo);
       let s;
       if (editando){ s = await llamar('editar', S.token, ed.id, d); aviso('Cambios guardados'); }
       else {
@@ -1230,6 +1238,99 @@ function pintarNueva(ed, copia){
       S.detalle = s; pintarDetalle(s); actualizarEnCache(s); cargar(true);
     } catch(e){ bt.disabled = false; bt.textContent = texto; }
   });
+}
+// Emergente en "Nueva solicitud": N° de levantamiento, materiales desde el tracker (o ingreso manual si el tracker
+// falla), documento firmado por el cliente y declaración. Crear queda deshabilitado hasta tener todo.
+// Al crear, el servidor vuelve a leer el tracker: del navegador solo toma la unidad de cada ítem.
+function formEmergente(inn){
+  const bloque = $('#bloqueFirma', inn), nLev = $('#nLev', inn), res = $('#levRes', inn), btCargar = $('#cargarLev', inn);
+  const montoBox = $('#montoLev', inn), monto = $('#nMonto', inn), montoOpc = $('#montoLevOpc', inn);
+  const decl = $('#declFirma', inn), declTxt = $('#declTxt', inn), manualBox = $('#itemsManual', inn), itemsBox = $('#items', inn);
+  const archivos = $$('#firmaCampo input[type=file]', inn), elegido = $('#firmaCampo .archivo-elegido', inn);
+  const enviar = $('#fNueva button[type=submit]', inn);
+  let lev = null, usar = false, manual = false, error = '';
+  const esEm = () => { const t = inn.querySelector('[name=tipo]:checked'); return !!(t && t.value === 'EMERGENTE'); };
+  const numero = () => { const m = nLev.value.match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+  const archivo = () => { const i = archivos.find(x => x.files.length); return i ? i.files[0] : null; };
+  const estado = () => {
+    const em = esEm();
+    bloque.hidden = !em; manualBox.hidden = em && !manual; montoBox.hidden = !(usar || manual);
+    declTxt.textContent = 'Declaro que el documento adjunto está firmado por el cliente y corresponde al Lev. ' + (numero() || '___') + '.';
+    enviar.disabled = em && !(numero() && (usar || manual) && archivo() && decl.checked);
+  };
+  const avisosHTML = () => lev.advertencias.map(a => `<p class="aviso-caja" style="margin:10px 0 0">${esc(a)}</p>`).join('');
+  const btnManual = '<button type="button" class="btn chico" data-lev="manual" style="margin:10px 0 0">Ingresar manualmente</button>';
+  const pintarRes = () => {
+    monto.readOnly = usar;
+    montoOpc.textContent = usar ? '(del tracker, CLP neto)' : '(CLP neto)';
+    if (usar) monto.value = lev.total;
+    if (lev && !usar) res.innerHTML = `<div class="lev-tarjeta"><b>Lev. ${esc(lev.n)}</b> <span class="chip">${esc(lev.estado || 'sin estado')}</span>
+        ${lev.descripcion ? `<p style="margin:6px 0 0">${esc(lev.descripcion)}</p>` : ''}
+        <p class="estado-linea" style="margin:6px 0 0">${lev.items.length} ${lev.items.length === 1 ? 'material' : 'materiales'} · total ${esc(fmtCLP(lev.total))}</p></div>
+      ${avisosHTML()}
+      <div class="botones" style="margin-top:10px"><button type="button" class="btn primario" data-lev="usar" style="margin:0">Usar estos materiales</button>${btnManual.replace('btn chico', 'btn').replace('margin:10px 0 0', 'margin:0')}</div>`;
+    else if (usar) res.innerHTML = `<div class="grupo-titulo" style="margin-top:12px">Materiales del Lev. ${esc(lev.n)} <span class="opc">(desde el tracker; solo la unidad se puede cambiar)</span></div>
+      <div class="tabla"><table><thead><tr><th class="num">Cant.</th><th>Unidad</th><th>Descripción</th><th class="num">Precio unit.</th><th class="num">Total</th></tr></thead>
+      <tbody>${lev.items.map((i, k) => {
+        const unidades = UNIDADES.indexOf(i.unidad) >= 0 ? UNIDADES : UNIDADES.concat([i.unidad]);
+        const tot = i.total || (i.precio_unit ? i.precio_unit * i.cant : 0);
+        return `<tr><td class="num">${esc(i.cant)}</td>
+          <td><select data-uni="${k}" aria-label="Unidad de ${esc(i.desc)}" style="margin:0;min-width:80px">${unidades.map(u => `<option ${u === i.unidad ? 'selected' : ''}>${esc(u)}</option>`).join('')}</select></td>
+          <td>${esc(i.desc)}</td><td class="num">${i.precio_unit ? esc(fmtCLP(i.precio_unit)) : '<span class="aviso-txt">sin precio</span>'}</td>
+          <td class="num">${tot ? esc(fmtCLP(Math.round(tot))) : ''}</td></tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr><th colspan="4" class="num">Total CLP</th><th class="num">${esc(fmtCLP(lev.total))}</th></tr></tfoot></table></div>
+      ${avisosHTML()}${btnManual}`;
+    else if (manual) res.innerHTML = `<p class="estado-linea" style="margin:10px 0 0">Ingreso manual: escribe los materiales en "Qué necesitas" y el monto total. Para volver a usar el tracker, presiona Cargar.</p>`;
+    else res.innerHTML = error ? `<p class="aviso-caja" style="margin:10px 0 0">${esc(error)}</p>${btnManual}` : '';
+    $$('[data-uni]', res).forEach(sel => sel.addEventListener('change', () => { lev.items[+sel.dataset.uni].unidad = sel.value; }));
+    $$('[data-lev]', res).forEach(bt => bt.addEventListener('click', () => {
+      if (bt.dataset.lev === 'usar') usar = true;
+      else {
+        // Parte del tracker si ya se había cargado: así solo corrige lo que haga falta
+        if (lev){ itemsBox.innerHTML = ''; lev.items.forEach(i => filaItem(itemsBox, { cantidad: i.cant, unidad: i.unidad, descripcion: i.desc })); }
+        manual = true; usar = false; monto.value = lev ? lev.total : '';
+      }
+      pintarRes();
+    }));
+    estado();
+  };
+  const cargar = async () => {
+    if (!numero()){ aviso('Escribe el N° de levantamiento (ej. LEV-57).', true); nLev.focus(); return; }
+    btCargar.disabled = true; btCargar.textContent = 'Cargando…';
+    try { lev = await llamar('buscarEmergente', S.token, nLev.value); error = ''; manual = false; }
+    catch(e){ lev = null; error = String((e && e.message) || e).replace(/^Error:\s*/, ''); }
+    usar = false; btCargar.disabled = false; btCargar.textContent = 'Cargar'; pintarRes();
+  };
+  btCargar.addEventListener('click', cargar);
+  nLev.addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ev.preventDefault(); cargar(); } });
+  nLev.addEventListener('input', () => {
+    if (lev && numero() !== lev.n){ lev = null; usar = false; error = ''; pintarRes(); } else estado();
+  });
+  archivos.forEach(inp => inp.addEventListener('change', () => {
+    if (inp.files.length){
+      const fl = inp.files[0];
+      if (!(fl.type === 'application/pdf' || /^image\//.test(fl.type) || /\.pdf$/i.test(fl.name))){ aviso('El documento firmado debe ser PDF o foto.', true); inp.value = ''; }
+      else { archivos.forEach(o => { if (o !== inp) o.value = ''; }); elegido.textContent = 'Seleccionado: ' + fl.name; }
+    }
+    estado();
+  }));
+  decl.addEventListener('change', estado);
+  $$('[name=tipo]', inn).forEach(r => r.addEventListener('change', estado));
+  pintarRes();
+  return {
+    datos(){
+      if (!numero()) return { error: 'Escribe el N° de levantamiento.' };
+      if (!usar && !manual) return { error: 'Carga los materiales desde el tracker o elige "Ingresar manualmente".' };
+      if (!archivo()) return { error: 'Adjunta el documento firmado por el cliente (PDF o foto).' };
+      if (!decl.checked) return { error: 'Marca la declaración de que el documento está firmado por el cliente.' };
+      const campos = { n_emergente: nLev.value.trim(), declaracion_firma: true, monto: monto.value };
+      if (usar) Object.assign(campos, { origen: 'TRACKER', unidades: lev.items.map(i => i.unidad),
+        items: lev.items.map(i => ({ cantidad: i.cant, unidad: i.unidad, descripcion: i.desc })), monto: String(lev.total) });
+      else if (!(Number(String(monto.value).replace(/\D/g, '')) > 0)) return { error: 'Indica el monto total del emergente.' };
+      return { campos, archivo: archivo() };
+    }
+  };
 }
 // Respaldos y cotizaciones: las fotos se achican menos que las de referencia para que el texto se lea
 function leerArchivo(file){
@@ -1464,7 +1565,29 @@ const DEMO = (() => {
       const s = sols.find(x => x.id === id); if (!s) throw new Error('No existe la solicitud ' + id + '.');
       const o = ser(s); o.historial = hist.filter(h => h.id === id).sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha)); return o;
     },
+    // Levantamientos de ejemplo del tracker (el real lo lee Código.js)
+    buscarEmergente(t, nLev){
+      const n = parseInt((String(nLev).match(/\d+/) || ['0'])[0], 10);
+      if (!n) throw new Error('Indica el N° de levantamiento (ej. LEV-57 o 57).');
+      const dup = sols.find(s => s.tipo === 'EMERGENTE' && ['RECIBIDA', 'RECHAZADA', 'ANULADA'].indexOf(s.estado) < 0 && parseInt((String(s.n_emergente).match(/\d+/) || ['0'])[0], 10) === n);
+      if (dup) throw new Error('Ya existe la solicitud ' + dup.id + ' para el Lev. ' + n + '.');
+      if (n === 57) return { n, idInterno: '62', descripcion: 'Cambio de brazo hidráulico puerta taller', estado: 'LEVANTAMIENTO', archivado: false, total: 94590, advertencias: [],
+        items: [{ cant: 1, unidad: 'un', desc: 'Brazo Hidráulico', precio_unit: 28990, total: 28990 }, { cant: 1, unidad: 'un', desc: 'Brazo hidráulico 80 kg', precio_unit: 65600, total: 65600 }] };
+      if (n === 52) return { n, idInterno: '55', descripcion: 'Reparación de baranda', estado: 'TERMINADO', archivado: false, total: 41000, advertencias: ['El levantamiento está TERMINADO en el tracker.'],
+        items: [{ cant: 2, unidad: 'un', desc: 'Perfil cuadrado 40x40', precio_unit: 20500, total: 41000 }] };
+      throw new Error('No existe el levantamiento ' + n + ' en el tracker. En el modo demostración prueba con 57 o 52.');
+    },
     crear(t, d){
+      if (d.tipo === 'EMERGENTE'){
+        if (!d.respaldo) throw new Error('Adjunta el documento firmado por el cliente (PDF o foto).');
+        if (d.declaracion_firma !== true) throw new Error('Marca la declaración de que el documento está firmado por el cliente.');
+        const n = parseInt((String(d.n_emergente).match(/\d+/) || ['0'])[0], 10);
+        if (!n) throw new Error('Indica el N° de levantamiento (ej. LEV-57 o 57).');
+        const dup = sols.find(s => s.tipo === 'EMERGENTE' && ['RECIBIDA', 'RECHAZADA', 'ANULADA'].indexOf(s.estado) < 0 && parseInt((String(s.n_emergente).match(/\d+/) || ['0'])[0], 10) === n);
+        if (dup) throw new Error('Ya existe la solicitud ' + dup.id + ' para el Lev. ' + n + '.');
+        d.n_emergente = 'LEV-' + n;
+        if (d.origen === 'TRACKER'){ const lev = this.buscarEmergente(t, n); d.monto = String(lev.total); d.items = lev.items.map((i, k) => ({ cantidad: i.cant, unidad: (d.unidades || [])[k] || 'un', descripcion: i.desc, precio: i.precio_unit })); }
+      }
       if (!d.items || !d.items.length) throw new Error('Agrega al menos un ítem con descripción.');
       if (!d.titulo || !d.titulo.trim()) d.titulo = d.items[0].descripcion + (d.items.length > 1 ? ' y ' + (d.items.length - 1) + (d.items.length === 2 ? ' ítem más' : ' ítems más') : '');
       if (d.prioridad === 'Crítica' && (!d.motivo || d.motivo.trim().length < 5)) throw new Error('Si es crítica, explica para qué es y qué pasa si no llega.');
@@ -1475,11 +1598,11 @@ const DEMO = (() => {
       const id = d.faena + '-' + ('000' + seq[d.faena]).slice(-4), ahora = new Date().toISOString();
       sols.push(base({ id, creada:ahora, faena:d.faena, contrato:d.contrato, tipo:d.tipo, prioridad:d.prioridad, area:d.area || '', titulo:d.titulo.trim(),
         necesita_para: d.necesita_para ? new Date(d.necesita_para + 'T12:00:00').toISOString() : '',
-        items:d.items.map(i => ({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() })), motivo:d.motivo.trim(), foto_url:fotos.join('\n'),
+        items:d.items.map(i => Object.assign({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() }, i.precio ? { precio:i.precio } : {})), motivo:d.motivo.trim(), foto_url:fotos.join('\n'),
         solicitante_id:yo.id, solicitante:yo.nombre, estado: d.tipo === 'BODEGA' ? 'SOLICITADA' : 'COTIZANDO', estado_desde:ahora, n_emergente:d.n_emergente || '',
         monto: Number(String(d.monto || '').replace(/\D/g, '')) || '' }));
       const nueva = sols[sols.length - 1];
-      if (d.tipo === 'EMERGENTE' && d.respaldo){ if (!(Number(nueva.monto) > 0)){ sols.pop(); throw new Error('Para subir el emergente firmado indica el monto total.'); } nueva.respaldo_url = d.respaldo; nueva.estado = 'POR_VALIDAR'; nueva.aprobado_por = yo.nombre; }
+      if (d.tipo === 'EMERGENTE'){ if (!(Number(nueva.monto) > 0)){ sols.pop(); seq[d.faena]--; throw new Error('Indica el monto total del emergente firmado.'); } nueva.respaldo_url = d.respaldo; nueva.estado = 'POR_VALIDAR'; nueva.aprobado_por = yo.nombre; }
       hist.push({ fecha:ahora, id, usuario:yo.nombre, accion: nueva.respaldo_url ? 'Creó la solicitud con respaldo firmado' : 'Creó la solicitud', de:'', a:nueva.estado, comentario:'' });
       return this.obtener(t, id);
     },
