@@ -634,22 +634,27 @@ function pintarApp(){
     <nav class="pestanas" role="tablist" id="pestanas"></nav>
   </header>
   <main class="contenido" id="vista"></main>
-  <button class="fab" id="btnNueva">Nueva solicitud</button>`;
+  ${b.usuario.soloLectura ? '' : '<button class="fab" id="btnNueva">Nueva solicitud</button>'}`;
   $('#selFaena').addEventListener('change', e => { S.faena = e.target.value; almacen.set('abs_faena', S.faena); cargar(); });
   $('#btnCuenta').addEventListener('click', pintarCuenta);
-  $('#btnNueva').addEventListener('click', () => pintarNueva());
+  const bn = $('#btnNueva'); if (bn) bn.addEventListener('click', () => pintarNueva());
   pintarPestanas();
 }
 
 function tieneEquipo(){ const u = S.boot && S.boot.usuario; return !!(u && u.contratos && u.contratos.length && u.roles.indexOf('SOLICITANTE') >= 0); }
 function pintarPestanas(){
   const c = S.conteos || {};
-  const tabs = [
+  let tabs = [
     ['pendientes', 'Mis pendientes', c.pendientes, true],
     ['mias', tieneEquipo() ? 'Mi contrato' : 'Mis solicitudes', c.mias, false],
     ['todas', 'Todas', c.vencidas, 'v'],
     ['panel', 'Panel', null, false]
   ];
+  // Perfil solo de consulta (GERENTE): no tiene pendientes ni solicitudes propias
+  if (S.boot && S.boot.usuario.soloLectura){
+    tabs = tabs.filter(t => t[0] === 'todas' || t[0] === 'panel');
+    if (S.vista !== 'panel') S.vista = 'todas';
+  }
   $('#pestanas').innerHTML = tabs.map(([k, t, n, al]) => `
     <button role="tab" aria-selected="${S.vista === k}" data-v="${k}">${t}${n ? `<span class="n ${al ? 'alerta' : ''}">${al === 'v' ? plural(n, 'vencida', 'vencidas') : n}</span>` : ''}</button>`).join('');
   $$('#pestanas button').forEach(b => b.addEventListener('click', () => { if (S.vista === b.dataset.v) return; S.vista = b.dataset.v; pintarPestanas(); cargar(); }));
@@ -944,13 +949,14 @@ function pintarDetalle(s){
         <div><span class="h-quien">${esc(h.usuario)}</span> ${esc(h.accion.charAt(0).toLowerCase() + h.accion.slice(1))}${h.a ? ` <span class="estado-linea">(${esc(nomEstado(h.a))})</span>` : ''}</div>
         <div class="h-cuando">${esc(fmtFecha(h.fecha))}</div>
         ${h.comentario ? `<div class="h-com">${esc(h.comentario)}</div>` : ''}</li>`).join('')}</ul>
-      <form id="fCom"><label>Agregar comentario<textarea name="t" placeholder="Ej: El proveedor confirma despacho el jueves" required></textarea></label>
-      <div class="botones"><button class="btn" type="submit">Comentar</button><a class="btn" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a>${puedeCrear() ? '<button class="btn" type="button" id="btnRepetir">Repetir solicitud</button>' : ''}</div></form>
+      ${S.boot.usuario.soloLectura ? `<div class="botones"><a class="btn" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div>`
+        : `<form id="fCom"><label>Agregar comentario<textarea name="t" placeholder="Ej: El proveedor confirma despacho el jueves" required></textarea></label>
+      <div class="botones"><button class="btn" type="submit">Comentar</button><a class="btn" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a>${puedeCrear() ? '<button class="btn" type="button" id="btnRepetir">Repetir solicitud</button>' : ''}</div></form>`}
     </section>`);
   $$('[data-acc]', inn).forEach(b => b.addEventListener('click', () => abrirAccion(s, acc[+b.dataset.acc])));
   const be = $('#btnEditar', inn); if (be) be.addEventListener('click', () => pintarNueva(s));
   const br = $('#btnRepetir', inn); if (br) br.addEventListener('click', () => pintarNueva(s, true));
-  $('#fCom', inn).addEventListener('submit', async ev => {
+  const fc = $('#fCom', inn); if (fc) fc.addEventListener('submit', async ev => {
     ev.preventDefault(); const bt = ev.target.querySelector('button'); bt.disabled = true;
     try { S.detalle = await llamar('comentar', S.token, s.id, new FormData(ev.target).get('t')); pintarDetalle(S.detalle); aviso('Comentario agregado'); }
     catch(e){ bt.disabled = false; }
@@ -1074,7 +1080,7 @@ function tablaItemsHTML(items){
       ? `<td class="num">${Number(i.precio) > 0 ? esc(fmtCLP(i.precio)) : ''}</td><td class="num">${sub(i) ? esc(fmtCLP(Math.round(sub(i)))) : ''}</td>` : ''}</tr>`).join('')}</tbody>
     ${conPrecio ? `<tfoot><tr><th colspan="4" class="num">Total ítems</th><th class="num">${esc(fmtCLP(Math.round(total)))}</th></tr></tfoot>` : ''}</table></div>`;
 }
-function puedeCrear(){ return !!(S.boot && S.boot.faenas && S.boot.faenas.length); }
+function puedeCrear(){ return !!(S.boot && S.boot.faenas && S.boot.faenas.length && !S.boot.usuario.soloLectura); }
 function contratosDe(faena){ return S.boot.contratos.filter(c => c.faenas.indexOf('TODAS') >= 0 || c.faenas.indexOf(faena) >= 0); }
 // ed: solicitud a editar, o a copiar si copia = true ("Repetir solicitud")
 function pintarNueva(ed, copia){
