@@ -119,6 +119,8 @@ textarea{min-height:84px;resize:vertical}
 details.mas{margin:4px 0 16px;border:1px solid var(--linea);background:var(--sup2);padding:0 12px}
 details.mas summary{cursor:pointer;padding:12px 0;font-weight:600;color:var(--tinta2)}
 details.mas[open]{padding-bottom:4px}
+.pendientes{background:color-mix(in srgb,var(--senal) 22%,var(--sup));border-left:6px solid var(--senal);padding:12px 14px;margin-top:12px;font-size:15px}
+.pendientes p{margin:6px 0;white-space:pre-wrap}
 .autocierre{background:var(--sup2);border-left:4px solid var(--info);padding:10px 12px;margin-top:12px;font-size:15px}
 
 /* Riel de estados */
@@ -372,7 +374,8 @@ const ACEPTA_DOCS = 'image/*,.pdf,.xlsx,.xls,.docx,.doc,' + TIPOS_DOCUMENTO.join
 const TIPO_INFO = {
   EMERGENTE: 'Materiales de un trabajo emergente para el cliente, cargados desde el tracker con el N° de levantamiento y el documento firmado por el cliente. Pasa por primera aprobación (ADC o jefatura de construcción) y jefatura de contrato si supera {UMBRAL}.',
   COMPRA: 'Herramientas, repuestos o equipos para MITT (ej. una gata para camioneta). Se cotiza, la aprueba el ADC o la jefatura de construcción y, si supera {UMBRAL}, también la jefatura de contrato.',
-  BODEGA: 'Algo que ya debería estar en bodega o en Casa MITT.'
+  BODEGA: 'Algo que ya debería estar en bodega o en Casa MITT.',
+  COTIZACION: 'Trabajo cotizado y firmado por el cliente. Se sube la cotización firmada y pasa directo a compra.'
 };
 const maxFotos = () => (S.boot && S.boot.maxFotos) || 3;
 const fotosDe = s => (s.fotos && s.fotos.length) ? s.fotos : (s.foto_url ? String(s.foto_url).split(/\s*\n\s*/).filter(Boolean) : []);
@@ -801,6 +804,7 @@ function posicionRiel(s){
   const r = rutaPara(s); let i = r.indexOf(s.estado), marca = 'actual';
   if (s.estado === 'OBSERVADA' || s.estado === 'POR_ACEPTAR'){ i = r.indexOf(s.estado_previo || r[0]); if (i < 0) i = 0; marca = 'observada'; }
   if (s.estado === 'RECHAZADA'){ i = r.indexOf(s.estado_previo); if (i < 0) i = Math.max(r.indexOf('POR_APROBAR'), r.indexOf('POR_AUTORIZAR'), r.indexOf('POR_VALIDAR')); marca = 'cortada'; }
+  if (s.estado === 'PARCIAL'){ i = r.indexOf('ENTREGADA'); marca = 'observada'; }
   if (s.estado === 'ANULADA'){ i = -1; }
   if (s.estado === 'RECIBIDA') marca = 'hecho';
   return { r, i, marca };
@@ -813,7 +817,7 @@ function rielGrandeHTML(s){
   const { r, i, marca } = posicionRiel(s);
   return `<div class="riel-grande" style="grid-template-columns:repeat(${r.length},minmax(0,1fr))">${r.map((e, k) => {
     const c = k < i ? 'hecho' : k === i ? marca : '';
-    const etiqueta = k === i && s.estado === 'OBSERVADA' ? 'Falta información' : k === i && s.estado === 'POR_ACEPTAR' ? 'Alternativa por aceptar' : k === i && s.estado === 'RECHAZADA' ? 'Rechazada' : (RIEL_CORTO[e] || nomEstado(e));
+    const etiqueta = k === i && s.estado === 'OBSERVADA' ? 'Falta información' : k === i && s.estado === 'POR_ACEPTAR' ? 'Alternativa por aceptar' : k === i && s.estado === 'RECHAZADA' ? 'Rechazada' : k === i && s.estado === 'PARCIAL' ? 'Recepción parcial' : (RIEL_CORTO[e] || nomEstado(e));
     return `<div class="${c}"><i></i><span>${esc(etiqueta)}</span></div>`;
   }).join('')}</div>`;
 }
@@ -891,10 +895,11 @@ function pintarDetalle(s){
     ['Archivo de cotización', s.cotizacion_archivo ? `<a href="${esc(s.cotizacion_archivo)}" target="_blank" rel="noopener">Ver cotización del proveedor</a>` : '', true],
     ['Link de cotización', s.cotizacion_url ? (/^https?:/i.test(s.cotizacion_url) ? `<a href="${esc(s.cotizacion_url)}" target="_blank" rel="noopener">Abrir link</a>` : esc(s.cotizacion_url)) : '', true],
     ['Levantamiento', s.n_emergente],
-    ['Firmado por el cliente', s.respaldo_url ? `<a href="${esc(s.respaldo_url)}" target="_blank" rel="noopener"><b>Ver documento firmado</b></a>` : '', true],
+    ['Cotización', s.n_cotizacion],
+    ['Firmado por el cliente', s.respaldo_url ? `<a href="${esc(s.respaldo_url)}" target="_blank" rel="noopener"><b>${s.tipo === 'COTIZACION' ? 'Ver cotización firmada' : 'Ver documento firmado'}</b></a>` : '', true],
     ['Primera aprobación', s.validado_por],
     ['Autorizó jefatura', s.autorizado_por],
-    [s.tipo === 'EMERGENTE' ? 'Respaldo cargado por' : 'Autorizó', s.aprobado_por], ['Compró', s.comprado_por],
+    [s.tipo === 'EMERGENTE' || s.tipo === 'COTIZACION' ? 'Respaldo cargado por' : 'Autorizó', s.aprobado_por], ['Compró', s.comprado_por],
     ['Entregado a', s.entregado_a],
     ['Respaldo de entrega', s.entrega_url ? `<a href="${esc(s.entrega_url)}" target="_blank" rel="noopener">Ver guía o foto de entrega</a>` : '', true],
     ['Recibió conforme', s.recibido_por]
@@ -921,6 +926,7 @@ function pintarDetalle(s){
           ${s.alternativa.proveedor ? `<dt>Proveedor</dt><dd>${esc(s.alternativa.proveedor)}</dd>` : ''}</dl>` : ''}
       </section>` : ''}
     ${rielGrandeHTML(s)}
+    ${pendientesHTML(s)}
     ${s.estado === 'ENTREGADA' && s.cierre_en_horas != null ? `<div class="autocierre">No hace falta confirmar la recepción: se cierra sola como recibida conforme ${s.cierre_en_horas ? 'en ' + fmtHoras(s.cierre_en_horas) : 'en la próxima revisión'}. Si llegó mal o incompleto, usa <b>Reportar problema con la entrega</b>.</div>` : ''}
     ${S.recienCreada === s.id ? `<div class="creada"><b>Solicitud creada.</b> Avisa al grupo para que quede a la vista; el link lleva directo a esta ficha.<div class="botones"><a class="btn primario" href="${waLink(s)}" target="_blank" rel="noopener">Avisar por WhatsApp</a></div></div>` : ''}
     ${acc.length || s.puedeEditar ? `<section class="bloque ${acc.some(a => a.codigo !== 'ANULAR') ? 'turno' : ''}">
@@ -928,10 +934,10 @@ function pintarDetalle(s){
         <div class="botones">${acc.map((a, k) => `<button class="btn ${a.peligro ? 'peligro' : (k === 0 && a.codigo !== 'RETROCEDER' ? 'primario' : '')}" data-acc="${k}">${esc(a.etiqueta)}</button>`).join('')}${s.puedeEditar ? '<button class="btn" id="btnEditar">Editar solicitud</button>' : ''}</div>
         <div id="accForm"></div>
       </section>` : ''}
-    <section class="bloque">
-      <h3>Qué se pide</h3>
+    ${s.tipo === 'COTIZACION' && !(s.items || []).length ? '' : `<section class="bloque">
+      <h3>${s.tipo === 'COTIZACION' ? 'Materiales anotados' : 'Qué se pide'}</h3>
       ${tablaItemsHTML(s.items)}
-    </section>
+    </section>`}
     <section class="bloque">
       <h3>Contexto</h3>
       <dl class="datos">
@@ -961,6 +967,17 @@ function pintarDetalle(s){
     try { S.detalle = await llamar('comentar', S.token, s.id, new FormData(ev.target).get('t')); pintarDetalle(S.detalle); aviso('Comentario agregado'); }
     catch(e){ bt.disabled = false; }
   });
+}
+
+// Recepción parcial (cotización cliente): el último comentario de pendientes, destacado
+function pendientesHTML(s){
+  if (s.estado !== 'PARCIAL') return '';
+  const h = (s.historial || []).filter(x => x.a === 'PARCIAL').pop();
+  if (!h) return '';
+  const partes = String(h.comentario || '').split(' | Respaldo de recepción: ');
+  const url = partes[1] && /^https?:/i.test(partes[1]) ? partes[1] : '';
+  return `<div class="pendientes"><b>Materiales pendientes</b> <span class="estado-linea">(${esc(h.usuario)}, ${esc(fmtFecha(h.fecha))})</span>
+    <p>${esc(partes[0])}</p>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">Ver respaldo de la recepción</a>` : ''}</div>`;
 }
 
 function campoHTML(k, req){
@@ -995,6 +1012,11 @@ function abrirAccion(s, a){
     <div class="botones"><button type="button" class="btn" id="accCancelar">Cancelar</button>
     <button type="submit" class="btn ${a.peligro ? 'peligro' : 'primario'}">${esc(a.etiqueta)}</button></div></form>`;
   const f = $('#fAcc');
+  if (a.codigo === 'T:PARCIAL'){
+    const ta = f.querySelector('[name=comentario]');
+    ta.placeholder = 'Ej: Faltan 2 cajas de terminales y el interruptor de 32 A';
+    ta.closest('label').firstChild.textContent = 'Materiales pendientes (qué faltó)';
+  }
   $$('[data-precios]', f).forEach(box => {
     box.innerHTML = `<table><thead><tr><th class="num">Cant.</th><th>Unidad</th><th>Descripción</th><th class="num">Precio unit.</th><th class="num">Subtotal</th></tr></thead>
       <tbody>${(s.items || []).map((i, k) => `<tr><td class="num">${esc(i.cantidad)}</td><td>${esc(i.unidad)}</td><td>${esc(i.descripcion)}</td>
@@ -1129,9 +1151,29 @@ function pintarNueva(ed, copia){
           <p class="estado-linea archivo-elegido" style="margin:8px 0 0"></p>
         </div>
         <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="declFirma" style="margin-top:3px"><span id="declTxt"></span></label>
+      </div>
+      <div class="bloque" id="bloqueCot" hidden style="margin:0 0 16px">
+        <h3>Cotización firmada por el cliente</h3>
+        <p class="estado-linea" style="margin:0 0 12px">Carga el trabajo desde el tracker con el N° de cotización y sube la cotización firmada. Pasa directo a compra, sin monto.</p>
+        <div class="lev-buscar">
+          <label style="margin:0">N° de cotización<input name="n_cotizacion" id="nCot" inputmode="numeric" placeholder="Ej: 233214" autocomplete="off"></label>
+          <button type="button" class="btn" id="cargarCot" style="margin:0">Cargar</button>
+        </div>
+        <div id="cotRes"></div>
+        <div class="grupo-titulo">Cotización firmada por el cliente (PDF o foto)</div>
+        <div class="foto-campo" id="cotCampo">
+          ${TACTIL ? '<input type="file" id="cotCam" class="oculto" accept="image/*" capture="environment" tabindex="-1">' : ''}
+          <input type="file" id="cotArch" class="oculto" accept="application/pdf,image/*" tabindex="-1">
+          <div class="botones">
+            ${TACTIL ? '<label for="cotCam" class="btn" style="margin:0">Tomar foto</label>' : ''}
+            <label for="cotArch" class="btn" style="margin:0">${TACTIL ? 'Elegir archivo' : 'Subir foto o PDF'}</label>
+          </div>
+          <p class="estado-linea archivo-elegido" style="margin:8px 0 0"></p>
+        </div>
+        <label class="check" style="margin-top:14px;align-items:flex-start"><input type="checkbox" id="declCot" style="margin-top:3px"><span id="declCotTxt"></span></label>
       </div>`}
       <div id="itemsManual">
-        <div class="grupo-titulo">Qué necesitas</div>
+        <div class="grupo-titulo" id="itemsTitulo">Qué necesitas</div>
         <div id="items"></div>
         <button type="button" class="btn chico" id="masItem" style="margin:2px 0 16px">Agregar ítem</button>
       </div>
@@ -1182,7 +1224,16 @@ function pintarNueva(ed, copia){
   if (!pre) setTimeout(() => { const d = items.querySelector('[name=desc]'); if (d) d.focus(); }, 50);
   $('#masItem', inn).addEventListener('click', () => agregar().querySelector('[name=desc]').focus());
   $('.cerrar-n', inn).addEventListener('click', () => pre ? abrir(ed.id) : cerrarHoja());
-  const emergente = editando ? null : formEmergente(inn);
+  // Crear queda deshabilitado mientras el emergente o la cotización tengan algo pendiente
+  const enviarBt = $('#fNueva button[type=submit]', inn), bloqueos = {};
+  const bloquear = (k, v) => { bloqueos[k] = v; enviarBt.disabled = Object.keys(bloqueos).some(x => bloqueos[x]); };
+  const emergente = editando ? null : formEmergente(inn, bloquear);
+  const cotizacion = editando ? null : formCotizacion(inn, bloquear);
+  if (editando && ed.tipo === 'COTIZACION'){
+    const ti = inn.querySelector('[name=titulo]'); ti.readOnly = true;
+    ti.previousElementSibling.textContent = '(nombre del trabajo en el tracker; no se cambia)';
+    $('#itemsTitulo', inn).innerHTML = 'Materiales <span class="opc">(opcional, sin precio)</span>';
+  }
 
   // Fotos: las que ya tiene la solicitud (URL) y las nuevas (data URL), hasta MAXF en total
   const fotosActuales = editando ? fotosDe(ed).slice() : [];
@@ -1226,10 +1277,10 @@ function pintarNueva(ed, copia){
       titulo: f.get('titulo'), area: f.get('area'), necesita_para: f.get('necesita_para'), prioridad: f.get('prioridad'), motivo: f.get('motivo'),
       items: leerItems(items)
     };
-    const em = emergente && d.tipo === 'EMERGENTE' ? emergente.datos() : null;
+    const em = emergente && d.tipo === 'EMERGENTE' ? emergente.datos() : cotizacion && d.tipo === 'COTIZACION' ? cotizacion.datos() : null;
     if (em && em.error){ aviso(em.error, true); return; }
     if (em) Object.assign(d, em.campos);
-    if (!d.items.length){ aviso('Agrega al menos un ítem con descripción.', true); return; }
+    if (!d.items.length && d.tipo !== 'COTIZACION'){ aviso('Agrega al menos un ítem con descripción.', true); return; }
     const texto = bt.textContent; bt.disabled = true; bt.textContent = editando ? 'Guardando…' : 'Creando…';
     try {
       d.fotos = fotosNuevas.slice();
@@ -1248,21 +1299,21 @@ function pintarNueva(ed, copia){
 // Emergente en "Nueva solicitud": N° de levantamiento, materiales desde el tracker (o ingreso manual si el tracker
 // falla), documento firmado por el cliente y declaración. Crear queda deshabilitado hasta tener todo.
 // Al crear, el servidor vuelve a leer el tracker: del navegador solo toma la unidad de cada ítem.
-function formEmergente(inn){
+function formEmergente(inn, bloquear){
   const bloque = $('#bloqueFirma', inn), nLev = $('#nLev', inn), res = $('#levRes', inn), btCargar = $('#cargarLev', inn);
   const montoBox = $('#montoLev', inn), monto = $('#nMonto', inn), montoOpc = $('#montoLevOpc', inn);
   const decl = $('#declFirma', inn), declTxt = $('#declTxt', inn), manualBox = $('#itemsManual', inn), itemsBox = $('#items', inn);
   const archivos = $$('#firmaCampo input[type=file]', inn), elegido = $('#firmaCampo .archivo-elegido', inn);
-  const enviar = $('#fNueva button[type=submit]', inn);
   let lev = null, usar = false, manual = false, error = '';
   const esEm = () => { const t = inn.querySelector('[name=tipo]:checked'); return !!(t && t.value === 'EMERGENTE'); };
   const numero = () => { const m = nLev.value.match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
   const archivo = () => { const i = archivos.find(x => x.files.length); return i ? i.files[0] : null; };
   const estado = () => {
     const em = esEm();
-    bloque.hidden = !em; manualBox.hidden = em && !manual; montoBox.hidden = !(usar || manual);
+    bloque.hidden = !em; montoBox.hidden = !(usar || manual);
+    if (em) manualBox.hidden = !manual; else if (!esCot(inn)) manualBox.hidden = false;
     declTxt.textContent = 'Declaro que el documento adjunto está firmado por el cliente y corresponde al Lev. ' + (numero() || '___') + '.';
-    enviar.disabled = em && !(numero() && (usar || manual) && archivo() && decl.checked);
+    bloquear('emergente', em && !(numero() && (usar || manual) && archivo() && decl.checked));
   };
   const avisosHTML = () => lev.advertencias.map(a => `<p class="aviso-caja" style="margin:10px 0 0">${esc(a)}</p>`).join('');
   const btnManual = '<button type="button" class="btn chico" data-lev="manual" style="margin:10px 0 0">Ingresar manualmente</button>';
@@ -1338,6 +1389,68 @@ function formEmergente(inn){
     }
   };
 }
+const esCot = inn => { const t = inn.querySelector('[name=tipo]:checked'); return !!(t && t.value === 'COTIZACION'); };
+// Cotización cliente en "Nueva solicitud": N° de cotización → trabajo desde el tracker (título bloqueado), cotización
+// firmada y declaración. Ítems opcionales sin precio y sin monto. El servidor vuelve a leer el tracker al crear.
+function formCotizacion(inn, bloquear){
+  const bloque = $('#bloqueCot', inn), nCot = $('#nCot', inn), res = $('#cotRes', inn), btCargar = $('#cargarCot', inn);
+  const decl = $('#declCot', inn), declTxt = $('#declCotTxt', inn);
+  const archivos = $$('#cotCampo input[type=file]', inn), elegido = $('#cotCampo .archivo-elegido', inn);
+  const titulo = inn.querySelector('[name=titulo]'), tituloOpc = titulo.previousElementSibling, tituloOpcTxt = tituloOpc.textContent;
+  const itemsTitulo = $('#itemsTitulo', inn), itemsTituloTxt = itemsTitulo.innerHTML, manualBox = $('#itemsManual', inn);
+  let cot = null, error = '', eraCot = false;
+  const numero = () => nCot.value.replace(/\s+/g, '');
+  const archivo = () => { const i = archivos.find(x => x.files.length); return i ? i.files[0] : null; };
+  const estado = () => {
+    const ec = esCot(inn);
+    bloque.hidden = !ec;
+    if (ec){ manualBox.hidden = false; itemsTitulo.innerHTML = 'Materiales <span class="opc">(opcional, sin precio; para anotar qué falta)</span>'; }
+    else if (eraCot) itemsTitulo.innerHTML = itemsTituloTxt;
+    // Título: el nombre del trabajo del tracker, bloqueado
+    if (ec){ titulo.readOnly = true; titulo.value = cot ? cot.trabajo.slice(0, 90) : ''; tituloOpc.textContent = '(nombre del trabajo en el tracker)'; }
+    else if (eraCot){ titulo.readOnly = false; titulo.value = ''; tituloOpc.textContent = tituloOpcTxt; }
+    eraCot = ec;
+    declTxt.textContent = 'Declaro que la cotización adjunta está firmada por el cliente y corresponde a la N° ' + (cot ? cot.n : numero() || '___') + '.';
+    bloquear('cotizacion', ec && !(cot && cot.n === numero() && archivo() && decl.checked));
+  };
+  const pintarRes = () => {
+    if (cot) res.innerHTML = `<div class="lev-tarjeta"><b>Cotización ${esc(cot.n)}</b> <span class="chip">${esc(cot.estado || 'sin estado')}</span>${cot.activo ? '' : ' <span class="chip">inactivo</span>'}
+        <p style="margin:6px 0 0"><b>${esc(cot.trabajo)}</b></p>
+        ${cot.supervisor ? `<p class="estado-linea" style="margin:6px 0 0">Supervisor: ${esc(cot.supervisor)}</p>` : ''}</div>
+      ${cot.advertencias.map(a => `<p class="aviso-caja" style="margin:10px 0 0">${esc(a)}</p>`).join('')}`;
+    else res.innerHTML = error ? `<p class="aviso-caja" style="margin:10px 0 0">${esc(error)}</p>` : '';
+    estado();
+  };
+  const cargar = async () => {
+    if (!numero()){ aviso('Escribe el N° de cotización (ej. 233214).', true); nCot.focus(); return; }
+    btCargar.disabled = true; btCargar.textContent = 'Cargando…';
+    try { cot = await llamar('buscarCotizacion', S.token, numero()); error = ''; }
+    catch(e){ cot = null; error = String((e && e.message) || e).replace(/^Error:\s*/, ''); }
+    btCargar.disabled = false; btCargar.textContent = 'Cargar'; pintarRes();
+  };
+  btCargar.addEventListener('click', cargar);
+  nCot.addEventListener('keydown', ev => { if (ev.key === 'Enter'){ ev.preventDefault(); cargar(); } });
+  nCot.addEventListener('input', () => { if (cot && numero() !== cot.n){ cot = null; error = ''; pintarRes(); } else estado(); });
+  archivos.forEach(inp => inp.addEventListener('change', () => {
+    if (inp.files.length){
+      const fl = inp.files[0];
+      if (!(fl.type === 'application/pdf' || /^image\//.test(fl.type) || /\.pdf$/i.test(fl.name))){ aviso('La cotización firmada debe ser PDF o foto.', true); inp.value = ''; elegido.textContent = ''; }
+      else { archivos.forEach(o => { if (o !== inp) o.value = ''; }); elegido.textContent = 'Seleccionado: ' + fl.name; }
+    }
+    estado();
+  }));
+  decl.addEventListener('change', estado);
+  $$('[name=tipo]', inn).forEach(r => r.addEventListener('change', estado));
+  pintarRes();
+  return {
+    datos(){
+      if (!cot || cot.n !== numero()) return { error: 'Escribe el N° de cotización y presiona Cargar.' };
+      if (!archivo()) return { error: 'Adjunta la cotización firmada por el cliente (PDF o foto).' };
+      if (!decl.checked) return { error: 'Marca la declaración de que la cotización está firmada por el cliente.' };
+      return { campos: { n_cotizacion: cot.n, declaracion_firma: true, titulo: cot.trabajo }, archivo: archivo() };
+    }
+  };
+}
 // Respaldos y cotizaciones: las fotos se achican menos que las de referencia para que el texto se lea
 function leerArchivo(file){
   if (/^image\//.test(file.type)) return leerFoto(file, 2000);
@@ -1365,7 +1478,7 @@ function leerFoto(file, max){
 }
 
 /* ---------- Panel ---------- */
-const ORDEN_ESTADOS = ['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','APROBADA','EN_COMPRA','ENTREGADA','OBSERVADA','POR_ACEPTAR'];
+const ORDEN_ESTADOS = ['SOLICITADA','COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','APROBADA','EN_COMPRA','ENTREGADA','PARCIAL','OBSERVADA','POR_ACEPTAR'];
 // El panel también queda guardado: si ya se calculó hace menos de 1 minuto se muestra al tiro; si no, se muestra el anterior y se recalcula por detrás
 async function pintarPanel(){
   const v = $('#vista');
@@ -1410,14 +1523,14 @@ function dibujarPanel(p){
 
 /* ---------- Modo demostración (solo fuera de Apps Script) ---------- */
 const DEMO = (() => {
-  const ESTADOS = { SOLICITADA:'Solicitada', COTIZANDO:'Cotizando', POR_VALIDAR:'Esperando primera aprobación', POR_APROBAR:'Esperando firma cliente', POR_AUTORIZAR:'Esperando autorización jefatura', APROBADA:'Aprobada', EN_COMPRA:'En compra', ENTREGADA:'Entregada', RECIBIDA:'Recibida conforme', OBSERVADA:'Falta información', RECHAZADA:'Rechazada', ANULADA:'Anulada' };
-  const TIPOS = { EMERGENTE:'Emergente', COMPRA:'Compra MITT', BODEGA:'Retiro de bodega' };
-  const RUTAS = { EMERGENTE:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','EN_COMPRA','ENTREGADA','RECIBIDA'], COMPRA:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','EN_COMPRA','ENTREGADA','RECIBIDA'], BODEGA:['SOLICITADA','ENTREGADA','RECIBIDA'] };
+  const ESTADOS = { SOLICITADA:'Solicitada', COTIZANDO:'Cotizando', POR_VALIDAR:'Esperando primera aprobación', POR_APROBAR:'Esperando firma cliente', POR_AUTORIZAR:'Esperando autorización jefatura', APROBADA:'Aprobada', EN_COMPRA:'En compra', ENTREGADA:'Entregada', PARCIAL:'Recepción parcial – materiales pendientes', RECIBIDA:'Recibida conforme', OBSERVADA:'Falta información', RECHAZADA:'Rechazada', ANULADA:'Anulada' };
+  const TIPOS = { EMERGENTE:'Emergente', COMPRA:'Compra MITT', BODEGA:'Retiro de bodega', COTIZACION:'Cotización cliente' };
+  const RUTAS = { EMERGENTE:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','EN_COMPRA','ENTREGADA','RECIBIDA'], COMPRA:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','EN_COMPRA','ENTREGADA','RECIBIDA'], BODEGA:['SOLICITADA','ENTREGADA','RECIBIDA'], COTIZACION:['EN_COMPRA','ENTREGADA','RECIBIDA'] };
   const CIERRE_H = 48;
   const UMBRAL = 200000;
   const MAXF = 3;
   const AVISO_H = 24;
-  const RESP = { EMERGENTE:{SOLICITADA:'COTIZADOR',COTIZANDO:'COTIZADOR',POR_VALIDAR:'VALIDADOR',POR_AUTORIZAR:'APROBADOR',POR_APROBAR:'SOLICITANTE',APROBADA:'COMPRADOR',EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, COMPRA:{SOLICITADA:'COTIZADOR',COTIZANDO:'COTIZADOR',POR_VALIDAR:'VALIDADOR',POR_AUTORIZAR:'APROBADOR',APROBADA:'COMPRADOR',EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, BODEGA:{SOLICITADA:'BODEGA',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'} };
+  const RESP = { EMERGENTE:{SOLICITADA:'COTIZADOR',COTIZANDO:'COTIZADOR',POR_VALIDAR:'VALIDADOR',POR_AUTORIZAR:'APROBADOR',POR_APROBAR:'SOLICITANTE',APROBADA:'COMPRADOR',EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, COMPRA:{SOLICITADA:'COTIZADOR',COTIZANDO:'COTIZADOR',POR_VALIDAR:'VALIDADOR',POR_AUTORIZAR:'APROBADOR',APROBADA:'COMPRADOR',EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, BODEGA:{SOLICITADA:'BODEGA',ENTREGADA:'SOLICITANTE',OBSERVADA:'SOLICITANTE'}, COTIZACION:{EN_COMPRA:'COMPRADOR',ENTREGADA:'SOLICITANTE',PARCIAL:'COMPRADOR',OBSERVADA:'SOLICITANTE'} };
   const TRANS = [
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'SOLICITADA', a: 'COTIZANDO', etiqueta: 'Tomar y cotizar', requiere: [] },
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'COTIZANDO', a: 'SIGUIENTE', etiqueta: 'Enviar a aprobación', requiere: ['monto'], opcional: ['proveedor', 'cotizacion_url'] },
@@ -1429,8 +1542,11 @@ const DEMO = (() => {
     { tipos: ['EMERGENTE'], de: 'POR_APROBAR', a: 'RECHAZADA', etiqueta: 'Cliente no aprobó', requiere: ['comentario'], peligro: true },
     { tipos: ['EMERGENTE', 'COMPRA'], de: 'APROBADA', a: 'EN_COMPRA', etiqueta: 'Salir a comprar', requiere: [] },
     { tipos: ['BODEGA'], de: 'SOLICITADA', a: 'ENTREGADA', etiqueta: 'Entregar desde bodega', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] },
-    { tipos: ['EMERGENTE', 'COMPRA'], de: 'EN_COMPRA', a: 'ENTREGADA', etiqueta: 'Marcar entregada', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] },
-    { tipos: ['EMERGENTE', 'COMPRA', 'BODEGA'], de: 'ENTREGADA', a: 'RECIBIDA', etiqueta: 'Confirmar recepción', requiere: [] }
+    { tipos: ['EMERGENTE', 'COMPRA', 'COTIZACION'], de: 'EN_COMPRA', a: 'ENTREGADA', etiqueta: 'Marcar entregada', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] },
+    { tipos: ['EMERGENTE', 'COMPRA', 'BODEGA'], de: 'ENTREGADA', a: 'RECIBIDA', etiqueta: 'Confirmar recepción', requiere: [] },
+    { tipos: ['COTIZACION'], de: 'ENTREGADA', a: 'RECIBIDA', etiqueta: 'Recibir conforme (total)', requiere: [] },
+    { tipos: ['COTIZACION'], de: 'ENTREGADA', a: 'PARCIAL', etiqueta: 'Recibir parcial', requiere: ['comentario'], opcional: ['respaldo_entrega'] },
+    { tipos: ['COTIZACION'], de: 'PARCIAL', a: 'ENTREGADA', etiqueta: 'Entregar pendientes', requiere: ['entregado_a'], opcional: ['respaldo_entrega'] }
   ];
   function rutaDe(s){
     let r = (RUTAS[s.tipo] || []).slice(); const m = Number(s.monto) || 0;
@@ -1447,7 +1563,7 @@ const DEMO = (() => {
     return base;
   }
   const CERR = ['RECIBIDA','RECHAZADA','ANULADA'];
-  const SLA = { SOLICITADA:1, COTIZANDO:3, POR_VALIDAR:1, POR_APROBAR:2, POR_AUTORIZAR:1, APROBADA:1, EN_COMPRA:3, ENTREGADA:2, OBSERVADA:2 };
+  const SLA = { SOLICITADA:1, COTIZANDO:3, POR_VALIDAR:1, POR_APROBAR:2, POR_AUTORIZAR:1, APROBADA:1, EN_COMPRA:3, ENTREGADA:2, OBSERVADA:2, PARCIAL:3 };
   const US = [
     { id:'11111111-1', nombre:'Administrador (ejemplo)', roles:['ADMIN','SOLICITANTE'], faenas:['TODAS'], contratos:['FIN-CAEX-DMH'] },
     { id:'U2', nombre:'Expeditor DMH', roles:['COTIZADOR','COMPRADOR'], faenas:['DMH'] },
@@ -1462,7 +1578,7 @@ const DEMO = (() => {
   ];
   const yo = US[0];
   const hace = d => new Date(Date.now() - d * 864e5).toISOString();
-  const base = (o) => Object.assign({ respaldo_url:'', entrega_url:'', validado_por:'', autorizado_por:'', area:'', prioridad:'Normal', necesita_para:'', foto_url:'', estado_previo:'', monto:'', proveedor:'', cotizacion_url:'', n_emergente:'', aprobado_por:'', comprado_por:'', entregado_a:'', recibido_por:'', cerrada:'' }, o);
+  const base = (o) => Object.assign({ respaldo_url:'', entrega_url:'', validado_por:'', autorizado_por:'', area:'', prioridad:'Normal', necesita_para:'', foto_url:'', estado_previo:'', monto:'', proveedor:'', cotizacion_url:'', n_emergente:'', n_cotizacion:'', aprobado_por:'', comprado_por:'', entregado_a:'', recibido_por:'', cerrada:'' }, o);
   let sols = [
     base({ id:'DMH-0007', creada:hace(11), faena:'DMH', contrato:'MITT', tipo:'COMPRA', prioridad:'Alta', area:'Camioneta 97', titulo:'Gata tijera para camioneta 97', items:[{cantidad:1,unidad:'un',descripcion:'Gata tijera baja, apta para terreno'}], motivo:'La gata actual es muy alta y no se adapta a las condiciones de terreno.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'COTIZANDO', estado_desde:hace(11) }),
     base({ id:'DMH-0008', creada:hace(11), faena:'DMH', contrato:'KOM-PALA-DMH', tipo:'BODEGA', prioridad:'Crítica', area:'Trabajador turno B', titulo:'Respirador talla L', items:[{cantidad:1,unidad:'un',descripcion:'Respirador medio rostro talla L'}], motivo:'Trabajador sin respirador de su talla; no puede ingresar a zonas con exposición.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'SOLICITADA', estado_desde:hace(11), necesita_para:hace(10) }),
@@ -1472,6 +1588,7 @@ const DEMO = (() => {
     base({ id:'DMH-0014', creada:hace(3), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'COMPRA', prioridad:'Alta', area:'Losa de lavado', titulo:'Kit de reparación bomba hidrolavadora', items:[{cantidad:1,unidad:'juego',descripcion:'Kit sellos y válvulas bomba triplex 200 bar'}], motivo:'Bomba pierde presión; sin reparación se detiene el lavado de CAEX.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'POR_AUTORIZAR', estado_desde:hace(0.5), monto:465000, proveedor:'Distribuidor Kärcher Antofagasta', validado_por:'Validador DMH' }),
     base({ id:'DMH-0013', creada:hace(0.3), faena:'DMH', contrato:'MITT', tipo:'EMERGENTE', area:'Baño varones Finning', titulo:'Monomando lavatorio y tornillos', items:[{cantidad:1,unidad:'un',descripcion:'Llave monomando lavatorio'},{cantidad:200,unidad:'un',descripcion:'Tornillo madera 1 5/8"'},{cantidad:200,unidad:'un',descripcion:'Tornillo punta broca 1 5/8"'}], motivo:'Llave actual en mal estado; tornillos para trabajos normales del contrato.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'OBSERVADA', estado_previo:'COTIZANDO', estado_desde:hace(0.2) }),
     base({ id:'DMH-0003', creada:hace(21), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'BODEGA', titulo:'Pintacal para demarcación', items:[{cantidad:6,unidad:'saco',descripcion:'Pintacal'}], motivo:'Demarcación de áreas de la losa.', solicitante_id:'U8', solicitante:'Supervisores Turno', estado:'RECIBIDA', estado_desde:hace(13), cerrada:hace(13), entregado_a:'Supervisor turno A', recibido_por:'Supervisores Turno' }),
+    base({ id:'DMH-0010', creada:hace(6), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'COTIZACION', titulo:'Cambio de luminarias taller de soldadura', items:[{cantidad:12,unidad:'un',descripcion:'Foco LED 150 W'},{cantidad:4,unidad:'caja',descripcion:'Terminales de compresión 10 mm'}], solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'PARCIAL', estado_desde:hace(1), n_cotizacion:'233190', respaldo_url:'#', aprobado_por:'Administrador (ejemplo)', comprado_por:'Expeditor DMH', entregado_a:'Supervisor turno A' }),
     base({ id:'CHUQUI-0001', creada:hace(3), faena:'CHUQUI', contrato:'MITT', tipo:'BODEGA', titulo:'Huincha aisladora verde, color del mes', items:[{cantidad:6,unidad:'rollo',descripcion:'Huincha aisladora verde'}], motivo:'Marcaje de herramientas del mes.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'ENTREGADA', estado_desde:hace(1), entregado_a:'Bodega turno B' })
   ];
   let hist = [
@@ -1482,6 +1599,10 @@ const DEMO = (() => {
     { fecha:hace(3), id:'DMH-0014', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'SOLICITADA', comentario:'' },
     { fecha:hace(1), id:'DMH-0014', usuario:'Expeditor DMH', accion:'Enviar a aprobación', de:'COTIZANDO', a:'POR_VALIDAR', comentario:'' },
     { fecha:hace(0.5), id:'DMH-0014', usuario:'Validador DMH', accion:'Aprobar y enviar a jefatura', de:'POR_VALIDAR', a:'POR_AUTORIZAR', comentario:'Repuesto original, precio revisado.' },
+    { fecha:hace(6), id:'DMH-0010', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud (cotización 233190 firmada por cliente)', de:'', a:'EN_COMPRA', comentario:'' },
+    { fecha:hace(6), id:'DMH-0010', usuario:'Administrador (ejemplo)', accion:'Declaró documento firmado por cliente – Cot. 233190', de:'', a:'', comentario:'' },
+    { fecha:hace(2), id:'DMH-0010', usuario:'Expeditor DMH', accion:'Marcar entregada', de:'EN_COMPRA', a:'ENTREGADA', comentario:'' },
+    { fecha:hace(1), id:'DMH-0010', usuario:'Administrador (ejemplo)', accion:'Recibir parcial', de:'ENTREGADA', a:'PARCIAL', comentario:'Llegaron 8 de 12 focos. Faltan 4 focos LED 150 W y las 4 cajas de terminales.' },
     { fecha:hace(0.3), id:'DMH-0013', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
     { fecha:hace(0.2), id:'DMH-0013', usuario:'Expeditor DMH', accion:'Pedir más información', de:'COTIZANDO', a:'OBSERVADA', comentario:'No hay pedido formal con cotización y firma. Falta levantamiento firmado.' }
   ];
@@ -1533,7 +1654,7 @@ const DEMO = (() => {
     o.fotos = listaFotos(s.foto_url);
     o.dias_totales = Math.floor(((cerr && s.cerrada ? Date.parse(s.cerrada) : Date.now()) - Date.parse(s.creada)) / 864e5);
     o.ruta = rutaDe(s); o.acciones = acciones(s); o.esMia = s.solicitante_id === yo.id || (yo.contratos || []).includes(s.contrato); o.meToca = o.acciones.some(a => a.codigo !== 'ANULAR');
-    if (s.estado === 'ENTREGADA'){ o.vencida = false; o.por_vencer = false; o.horas_para_vencer = null; o.meToca = false; o.cierre_en_horas = Math.max(0, Math.round((desde + CIERRE_H * 36e5 - Date.now()) / 36e5)); }
+    if (s.estado === 'ENTREGADA' && s.tipo !== 'COTIZACION'){ o.vencida = false; o.por_vencer = false; o.horas_para_vencer = null; o.meToca = false; o.cierre_en_horas = Math.max(0, Math.round((desde + CIERRE_H * 36e5 - Date.now()) / 36e5)); }
     o.aprobable = ['POR_VALIDAR','POR_AUTORIZAR'].includes(s.estado) && o.acciones.some(a => a.codigo === 'PREAUTORIZAR' || (a.codigo.startsWith('T:') && a.codigo !== 'T:RECHAZADA' && !a.requiere.length));
     o.puedeEditar = ['SOLICITADA','OBSERVADA'].includes(s.estado) || (s.estado === 'COTIZANDO' && !(Number(s.monto) > 0));
     return o;
@@ -1583,7 +1704,35 @@ const DEMO = (() => {
         items: [{ cant: 2, unidad: 'un', desc: 'Perfil cuadrado 40x40', precio_unit: 20500, total: 41000 }] };
       throw new Error('No existe el levantamiento ' + n + ' en el tracker. En el modo demostración prueba con 57 o 52.');
     },
+    // Trabajos de ejemplo del tracker (el real lo lee Código.js de la hoja Trabajos)
+    buscarCotizacion(t, nc){
+      const n = String(nc == null ? '' : nc).replace(/\s+/g, '');
+      if (!/^\d+$/.test(n)) throw new Error('N° de cotización inválido.');
+      const dup = sols.find(s => s.tipo === 'COTIZACION' && ['ANULADA', 'RECHAZADA'].indexOf(s.estado) < 0 && s.n_cotizacion === n);
+      if (dup) throw new Error('Ya existe la solicitud ' + dup.id + ' para la cotización ' + n + '.');
+      if (n === '233214') return { n, trabajo:'Instalación de tablero eléctrico sector bahia luis osorio', supervisor:'Luis Osorio', estado:'TERMINADO', activo:false,
+        advertencias:['El trabajo está TERMINADO en el tracker.', 'El trabajo está inactivo en el tracker (Activo = FALSE).'] };
+      if (n === '233250') return { n, trabajo:'Reparación de portón corredera taller CAEX', supervisor:'Supervisor DMH', estado:'EN CURSO', activo:true, advertencias:[] };
+      if (n === '233190') return { n, trabajo:'Cambio de luminarias taller de soldadura', supervisor:'Supervisor DMH', estado:'EN CURSO', activo:true, advertencias:[] };
+      throw new Error('No existe la cotización ' + n + ' en el tracker. En el modo demostración prueba con 233214 o 233250.');
+    },
     crear(t, d){
+      if (d.tipo === 'COTIZACION'){
+        const cot = this.buscarCotizacion(t, d.n_cotizacion);
+        if (!d.respaldo) throw new Error('Adjunta la cotización firmada por el cliente (PDF o foto).');
+        if (d.declaracion_firma !== true) throw new Error('Marca la declaración de que la cotización está firmada por el cliente.');
+        if (d.prioridad === 'Crítica' && (!d.motivo || d.motivo.trim().length < 5)) throw new Error('Si es crítica, explica para qué es y qué pasa si no llega.');
+        seq[d.faena] = (seq[d.faena] || 0) + 1;
+        const id = d.faena + '-' + ('000' + seq[d.faena]).slice(-4), ahora = new Date().toISOString();
+        sols.push(base({ id, creada:ahora, faena:d.faena, contrato:d.contrato, tipo:'COTIZACION', prioridad:d.prioridad, area:d.area || '', titulo:cot.trabajo.slice(0, 90),
+          necesita_para: d.necesita_para ? new Date(d.necesita_para + 'T12:00:00').toISOString() : '',
+          items:(d.items || []).filter(i => String(i.descripcion || '').trim()).map(i => ({ cantidad:Number(i.cantidad) || 1, unidad:i.unidad, descripcion:i.descripcion.trim() })),
+          motivo:(d.motivo || '').trim(), foto_url:fotosEntrantes(d).join('\n'), solicitante_id:yo.id, solicitante:yo.nombre, estado:'EN_COMPRA', estado_desde:ahora,
+          n_cotizacion:cot.n, respaldo_url:d.respaldo, aprobado_por:yo.nombre }));
+        hist.push({ fecha:ahora, id, usuario:yo.nombre, accion:'Creó la solicitud (cotización ' + cot.n + ' firmada por cliente)', de:'', a:'EN_COMPRA', comentario:'' });
+        hist.push({ fecha:ahora, id, usuario:yo.nombre, accion:'Declaró documento firmado por cliente – Cot. ' + cot.n, de:'', a:'', comentario:'' });
+        return this.obtener(t, id);
+      }
       if (d.tipo === 'EMERGENTE'){
         if (!d.respaldo) throw new Error('Adjunta el documento firmado por el cliente (PDF o foto).');
         if (d.declaracion_firma !== true) throw new Error('Marca la declaración de que el documento está firmado por el cliente.');
@@ -1619,8 +1768,10 @@ const DEMO = (() => {
       if (d.monto){ const m = Number(String(d.monto).replace(/\D/g, '')); if (!(m > 0)) throw new Error('El monto debe ser un número mayor a cero.'); s.monto = m; }
       ['proveedor','cotizacion_url','n_emergente','entregado_a'].forEach(k => { if (d[k] && d[k].trim()) s[k] = d[k].trim(); });
       if (d.respaldo) s.respaldo_url = d.respaldo;
-      if (d.respaldo_entrega) s.entrega_url = d.respaldo_entrega;
-      const de = s.estado; let a, nota = '';
+      let nota = '';
+      if (d.respaldo_entrega && cod === 'T:PARCIAL') nota = 'Respaldo de recepción: https://drive.google.com/ (archivo de ejemplo, no se guarda en la demostración)';
+      else if (d.respaldo_entrega) s.entrega_url = d.respaldo_entrega;
+      const de = s.estado; let a;
       if (de === 'COTIZANDO' || de === 'SOLICITADA'){ s.validado_por = ''; s.autorizado_por = ''; }
       if (cod === 'PREAUTORIZAR'){ s.autorizado_por = yo.nombre; hist.push({ fecha:new Date().toISOString(), id, usuario:yo.nombre, accion:acc.etiqueta, de, a:de, comentario:(d.comentario || '').trim() }); return this.obtener(t, id); }
       if (cod.startsWith('T:')) a = cod.slice(2);
@@ -1643,6 +1794,7 @@ const DEMO = (() => {
     editar(t, id, d){
       const s = sols.find(x => x.id === id);
       if (!ser(s).puedeEditar) throw new Error('Ya no se puede editar.');
+      if (s.tipo === 'COTIZACION') d.titulo = s.titulo;
       if (!d.titulo || !d.titulo.trim()) d.titulo = (d.items[0] || {}).descripcion || '';
       if (d.prioridad === 'Crítica' && (!d.motivo || d.motivo.trim().length < 5)) throw new Error('Si es crítica, explica para qué es y qué pasa si no llega.');
       d.motivo = d.motivo || '';
