@@ -127,6 +127,7 @@ details.mas[open]{padding-bottom:4px}
 .bloque-lista span{font-weight:500;color:var(--tinta2);font-size:14px}
 .chip.antiguo{border-color:var(--alerta);color:var(--alerta);font-weight:600}
 .chip.sinfoto{border-style:dashed;font-size:12px}
+.chip.comentario{border-color:var(--info);color:var(--info);font-weight:600}
 .filtros-fecha{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
 .filtros-fecha label{margin:0;font-size:14px}
 .filtros-fecha input{margin-top:3px;padding:7px 10px}
@@ -868,6 +869,7 @@ function chipsHTML(s){
     ${s.respaldo_url ? '<span class="chip firmado">Firmado por cliente</span>' : ''}
     ${esAntigua(s) ? '<span class="chip antiguo">Estado antiguo</span>' : ''}
     ${s.subido_faena && s.estado === 'ENTREGA_INMEDIATA' ? '<span class="chip">Subido a faena</span>' : ''}
+    ${s.comentario_nuevo ? '<span class="chip comentario" title="Otra persona comentó en las últimas 48 horas">Comentario nuevo</span>' : ''}
     ${s.prioridad === 'Crítica' ? '<span class="chip critica">Crítica</span>' : s.prioridad === 'Alta' ? '<span class="chip alta">Alta</span>' : ''}`;
 }
 function filaHTML(s){
@@ -1723,6 +1725,7 @@ const DEMO = (() => {
     { fecha:hace(0.6), id:'DMH-0008', usuario:'Expeditor DMH', accion:'Entrega inmediata (hay stock)', de:'COTIZANDO', a:'ENTREGA_INMEDIATA', comentario:'Hay stock: sin aprobaciones. La entrega queda a cargo de bodega.' },
     { fecha:hace(16), id:'DMH-0005', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
     { fecha:hace(4), id:'DMH-0005', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'EN_COMPRA', comentario:'' },
+    { fecha:hace(0.4), id:'DMH-0005', usuario:'Expeditor DMH', accion:'Comentó', de:'', a:'', comentario:'El proveedor confirma despacho para el jueves.' },
     { fecha:hace(3), id:'DMH-0014', usuario:'Supervisores Turno', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
     { fecha:hace(1), id:'DMH-0014', usuario:'Expeditor DMH', accion:'Enviar a aprobación', de:'COTIZANDO', a:'POR_VALIDAR', comentario:'' },
     { fecha:hace(0.5), id:'DMH-0014', usuario:'Validador DMH', accion:'Aprobar y enviar a jefatura', de:'POR_VALIDAR', a:'POR_AUTORIZAR', comentario:'Repuesto original, precio revisado.' },
@@ -1822,6 +1825,8 @@ const DEMO = (() => {
     o.por_vencer = !cerr && !o.vencida && limite > 0 && limite - Date.now() <= AVISO_H * 36e5;
     o.estado_antiguo = antiguo; o.rol_responsable = antiguo ? '' : rolResp(s);
     o.fotos = listaFotos(s.foto_url); o.fotos_recepcion = listaFotos(s.entrega_url);
+    // Comentario de otra persona en las últimas 48 horas (como comentariosNuevos_ en Código.js)
+    o.comentario_nuevo = hist.some(h => h.id === s.id && h.accion === 'Comentó' && h.usuario !== yo.nombre && Date.now() - Date.parse(h.fecha) <= 48 * 36e5);
     o.dias_totales = Math.floor(((CERR.includes(s.estado) && s.cerrada ? Date.parse(s.cerrada) : Date.now()) - Date.parse(s.creada)) / 864e5);
     o.ruta = rutaDe(s); o.acciones = acciones(s); o.esMia = s.solicitante_id === yo.id || (yo.contratos || []).includes(s.contrato);
     o.meToca = meToca(s);
