@@ -126,6 +126,7 @@ details.mas[open]{padding-bottom:4px}
 .bloque-lista:first-child{margin-top:0}
 .bloque-lista span{font-weight:500;color:var(--tinta2);font-size:14px}
 .chip.antiguo{border-color:var(--alerta);color:var(--alerta);font-weight:600}
+.chip.sinfoto{border-style:dashed;font-size:12px}
 .filtros-fecha{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
 .filtros-fecha label{margin:0;font-size:14px}
 .filtros-fecha input{margin-top:3px;padding:7px 10px}
@@ -874,7 +875,7 @@ function filaHTML(s){
   const pie = s.vencida ? (s.fuera_de_fecha ? 'pasó la fecha' : 'fuera de plazo') : s.por_vencer ? 'vence en ' + fmtHoras(s.horas_para_vencer) : 'en este paso';
   const dias = cerr ? `${s.dias_totales}d<small>en total</small>` : `${s.dias_en_estado}d<small>${pie}</small>`;
   return `<button class="fila ${s.vencida ? 'vencida' : s.por_vencer ? 'porvencer' : ''} ${cerr ? 'cerrada' : ''}" data-id="${esc(s.id)}">
-    <div class="meta">${chipsHTML(s)}</div>
+    <div class="meta">${chipsHTML(s)}${cerr && s.recepciones_sin_foto ? ` <span class="chip sinfoto" title="${s.recepciones_sin_foto === 1 ? 'Una recepción registrada' : s.recepciones_sin_foto + ' recepciones registradas'} sin foto de respaldo">Sin foto</span>` : ''}</div>
     <div class="titulo">${esc(s.titulo)}${s.area ? ` <span class="estado-linea">(${esc(s.area)})</span>` : ''}</div>
     <div class="estado-linea">${estadoLinea(s)}</div>
     ${rielHTML(s)}
@@ -926,6 +927,10 @@ function galeriaRecepcionHTML(s){
 }
 // Recepciones registradas (historial): quién, cuándo, total o parcial y qué quedó pendiente
 const ACC_RECEPCION = ['Recibir conforme (total)', 'Recibir parcial', 'Confirmar recepción', 'Cerró como recibida conforme'];
+// Recepción registrada sin foto (la foto es opcional; se marca para medir el cumplimiento). Mismo criterio que recepcionSinFoto_ en el servidor.
+const recepcionSinFoto = h => h.sin_foto != null ? !!h.sin_foto : (['Recibir conforme (total)', 'Recibir parcial'].indexOf(h.accion) >= 0 && !/Foto: (https?:|data:|\()/.test(String(h.comentario || '')));
+// Partes del comentario de una recepción que no son del usuario: la foto (o "Sin foto"), que se muestran aparte
+const notaFoto = x => /^(Recepción total\. )?(Foto: |Sin foto$)/.test(x);
 function recepcionesHTML(s){
   const hs = (s.historial || []).filter(h => ACC_RECEPCION.indexOf(h.accion) >= 0);
   const fs = fotosRecepcion(s);
@@ -935,8 +940,9 @@ function recepcionesHTML(s){
     ? `Recibida ${parciales ? 'en ' + plural(parciales + 1, 'entrega', 'entregas') + ' (' + plural(parciales, 'recepción parcial', 'recepciones parciales') + ' y la total)' : 'total, de una vez'}${s.recibido_por ? ' · cerró ' + esc(s.recibido_por) : ''}${s.cerrada ? ', ' + esc(fmtFecha(s.cerrada)) : ''}.`
     : parciales ? plural(parciales, 'recepción parcial', 'recepciones parciales') + ' registrada' + (parciales === 1 ? '' : 's') + '. Falta la recepción total.' : '';
   return `<section class="bloque"><h3>Recepción</h3>${resumen ? `<p style="margin:0">${resumen}</p>` : ''}
-    ${hs.length ? `<ul class="recepciones">${hs.map(h => `<li><b>${esc(h.accion === 'Recibir parcial' ? 'Parcial' : 'Total')}</b> · ${esc(h.usuario)} · ${esc(fmtFecha(h.fecha))}
-      ${h.comentario ? `<div class="estado-linea">${esc(h.comentario.split(' | ').filter(x => !/^Foto: /.test(x)).join(' · '))}</div>` : ''}</li>`).join('')}</ul>` : ''}
+    ${hs.length ? `<ul class="recepciones">${hs.map(h => { const com = String(h.comentario || '').split(' | ').filter(x => !notaFoto(x)).join(' · ');
+      return `<li><b>${esc(h.accion === 'Recibir parcial' ? 'Parcial' : 'Total')}</b> · ${esc(h.usuario)} · ${esc(fmtFecha(h.fecha))}${recepcionSinFoto(h) ? ' <span class="chip sinfoto" title="Recepción registrada sin foto de respaldo">Sin foto</span>' : ''}
+      ${com ? `<div class="estado-linea">${esc(com)}</div>` : ''}</li>`; }).join('')}</ul>` : ''}
     ${galeriaRecepcionHTML(s)}</section>`;
 }
 
@@ -972,8 +978,8 @@ function pintarDetalle(s){
     ${s.demo ? '<p class="ejemplo-txt"><b>Solicitud de ejemplo</b> para la marcha blanca. No envía correos.</p>' : ''}
     ${esAntigua(s) ? `<p class="aviso-caja">Esta solicitud quedó en un estado que ya no existe (<b>${esc(s.estado)}</b>). No tiene acciones hasta que el administrador corrija la columna estado en la planilla.</p>` : ''}
     ${s.estado === 'ENTREGA_INMEDIATA' && !esCerrada(s) ? `<p class="aviso-caja">${s.subido_faena
-      ? `Hay stock: el material va a faena (${esc(s.subido_por || 'comprador')}, ${esc(fmtFecha(s.subido_faena))}). Al recibirlo, registra la recepción con una foto.`
-      : 'Hay stock en bodega: el supervisor lo retira en bodega o el comprador lo sube a faena. Se cierra cuando el supervisor registra la recepción con una foto.'}</p>` : ''}
+      ? `Hay stock: el material va a faena (${esc(s.subido_por || 'comprador')}, ${esc(fmtFecha(s.subido_faena))}). Al recibirlo, registra la recepción (idealmente con una foto).`
+      : 'Hay stock en bodega: el supervisor lo retira en bodega o el comprador lo sube a faena. Se cierra cuando el supervisor registra la recepción (idealmente con una foto).'}</p>` : ''}
     ${s.alternativa && !s.alternativa.items ? `<p class="aviso-caja">${esc(s.alternativa.aviso)}</p>` : ''}
     ${s.alternativa && s.alternativa.items ? `<section class="bloque turno">
         <h3>Alternativa propuesta por el comprador</h3>
@@ -1036,10 +1042,10 @@ function pendientesHTML(s){
   const h = (s.historial || []).filter(x => x.accion === 'Recibir parcial').pop();
   if (!h) return '';
   const partes = String(h.comentario || '').split(' | ');
-  const pend = partes.filter(x => !/^Foto: /.test(x)).join(' · ').replace(/^Pendiente: /, '');
+  const pend = partes.filter(x => !notaFoto(x)).join(' · ').replace(/^Pendiente: /, '');
   const foto = (partes.find(x => /^Foto: /.test(x)) || '').replace(/^Foto: /, '');
   return `<div class="pendientes"><b>Materiales pendientes</b> <span class="estado-linea">(recepción parcial de ${esc(h.usuario)}, ${esc(fmtFecha(h.fecha))})</span>
-    <p>${esc(pend)}</p>${/^https?:/i.test(foto) ? `<a href="${esc(foto)}" target="_blank" rel="noopener">Ver foto de la recepción</a>` : ''}</div>`;
+    <p>${esc(pend)}</p>${/^https?:/i.test(foto) ? `<a href="${esc(foto)}" target="_blank" rel="noopener">Ver foto de la recepción</a>` : recepcionSinFoto(h) ? '<span class="chip sinfoto">Sin foto</span>' : ''}</div>`;
 }
 
 function campoHTML(k, req){
@@ -1635,6 +1641,8 @@ const DEMO = (() => {
   const CREABLES = ['COMPRA', 'EMERGENTE', 'COTIZACION'];
   const RUTAS = { EMERGENTE:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','POR_APROBAR','EN_COMPRA','RECIBIDA'], COMPRA:['COTIZANDO','POR_VALIDAR','POR_AUTORIZAR','EN_COMPRA','RECIBIDA'], BODEGA:['ENTREGA_INMEDIATA','RECIBIDA'], COTIZACION:['EN_COMPRA','RECIBIDA'] };
   const UMBRAL = 200000;
+  // Config > FOTO_RECEPCION_OBLIGATORIA en la demostración (NO: la foto al recibir es opcional)
+  const FOTO_REC_OBLIG = false;
   const MAXF = 3;
   const AVISO_H = 24;
   const RESP = {
@@ -1726,7 +1734,7 @@ const DEMO = (() => {
     { fecha:hace(0.3), id:'DMH-0013', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
     { fecha:hace(0.2), id:'DMH-0013', usuario:'Expeditor DMH', accion:'Pedir más información', de:'COTIZANDO', a:'OBSERVADA', comentario:'¿La llave es para lavatorio de pared o de cubierta?' },
     { fecha:hace(1), id:'CHUQUI-0001', usuario:'Expeditor Chuqui', accion:'Entrega inmediata (hay stock)', de:'COTIZANDO', a:'ENTREGA_INMEDIATA', comentario:'Hay stock: sin aprobaciones. La entrega queda a cargo de el comprador (no hay bodega activa en CHUQUI).' },
-    { fecha:hace(0.2), id:'CHUQUI-0001', usuario:'Expeditor Chuqui', accion:'Subido a faena', de:'ENTREGA_INMEDIATA', a:'ENTREGA_INMEDIATA', comentario:'El material va a faena; falta que el supervisor registre la recepción con foto.' },
+    { fecha:hace(0.2), id:'CHUQUI-0001', usuario:'Expeditor Chuqui', accion:'Subido a faena', de:'ENTREGA_INMEDIATA', a:'ENTREGA_INMEDIATA', comentario:'El material va a faena; falta que el supervisor registre la recepción.' },
     { fecha:hace(0.5), id:'CHUQUI-0002', usuario:'Expeditor Chuqui', accion:'Entrega inmediata (hay stock)', de:'COTIZANDO', a:'ENTREGA_INMEDIATA', comentario:'Hay stock: sin aprobaciones. La entrega queda a cargo de el comprador (no hay bodega activa en CHUQUI).' },
     { fecha:hace(9), id:'DMH-0002', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
     { fecha:hace(6), id:'DMH-0002', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'EN_COMPRA', comentario:'' },
@@ -1775,8 +1783,9 @@ const DEMO = (() => {
     });
     if (s.estado === 'POR_VALIDAR' && (Number(s.monto) || 0) > UMBRAL && !s.autorizado_por && !propia && tr('APROBADOR')) out.push({ codigo:'PREAUTORIZAR', etiqueta:'Autorizar como jefatura (queda esperando la primera aprobación)', requiere:[], opcional:[], peligro:false });
     if (['EN_COMPRA','ENTREGA_INMEDIATA'].includes(s.estado) && tr('SOLICITANTE')){
-      out.push({ codigo:'RECIBIR', etiqueta:'Recibir conforme (total)', requiere:['respaldo_entrega'], opcional:['comentario'], peligro:false });
-      out.push({ codigo:'RECIBIR_PARCIAL', etiqueta:'Recibir parcial', requiere:['respaldo_entrega','comentario'], opcional:[], peligro:false });
+      // Foto opcional, salvo Config > FOTO_RECEPCION_OBLIGATORIA = SI (en la demostración, FOTO_REC_OBLIG)
+      out.push({ codigo:'RECIBIR', etiqueta:'Recibir conforme (total)', requiere:FOTO_REC_OBLIG ? ['respaldo_entrega'] : [], opcional:FOTO_REC_OBLIG ? ['comentario'] : ['respaldo_entrega','comentario'], peligro:false });
+      out.push({ codigo:'RECIBIR_PARCIAL', etiqueta:'Recibir parcial', requiere:FOTO_REC_OBLIG ? ['respaldo_entrega','comentario'] : ['comentario'], opcional:FOTO_REC_OBLIG ? [] : ['respaldo_entrega'], peligro:false });
     }
     if (s.tipo === 'COMPRA' && ['SOLICITADA','COTIZANDO'].includes(s.estado) && (tr('COTIZADOR') || tr('COMPRADOR'))) out.push({ codigo:'INMEDIATA', etiqueta:'Entrega inmediata (hay stock)', requiere:[], opcional:['comentario'], peligro:false });
     if (s.estado === 'ENTREGA_INMEDIATA'){
@@ -1858,7 +1867,7 @@ const DEMO = (() => {
         if ((desde && c < desde) || (hasta && c > hasta)) return false;
         return !q || [s.id, s.titulo, s.area, s.solicitante, s.contrato, s.n_emergente, s.n_cotizacion].join(' ').toLowerCase().includes(q);
       }).sort((a, b) => Date.parse(b.cerrada || b.estado_desde) - Date.parse(a.cerrada || a.estado_desde));
-      return { items: it.slice(0, 300).map(ser), total: it.length };
+      return { items: it.slice(0, 300).map(s => Object.assign(ser(s), { recepciones_sin_foto: hist.filter(h => h.id === s.id && recepcionSinFoto(h)).length })), total: it.length };
     },
     obtener(t, id){
       const s = sols.find(x => x.id === id); if (!s) throw new Error('No existe la solicitud ' + id + '.');
@@ -1944,14 +1953,17 @@ const DEMO = (() => {
       if (cod === 'PREAUTORIZAR'){ s.autorizado_por = yo.nombre; hist.push({ fecha:ahoraIso(), id, usuario:yo.nombre, accion:acc.etiqueta, de, a:de, comentario:(d.comentario || '').trim() }); return this.obtener(t, id); }
       if (cod.startsWith('T:')) a = cod.slice(2);
       else if (cod === 'RECIBIR' || cod === 'RECIBIR_PARCIAL'){
-        if (!/^data:(image\/|application\/pdf)/.test(String(d.respaldo_entrega || ''))) throw new Error('Falta la foto de la recepción (material o guía/factura). Sin foto no se puede registrar.');
+        const foto = String(d.respaldo_entrega || '').trim();
+        if (foto && !/^data:(image\/|application\/pdf)/.test(foto)) throw new Error('La foto de la recepción debe ser una imagen o un PDF.');
+        if (!foto && FOTO_REC_OBLIG) throw new Error('Falta la foto de la recepción (material o guía/factura). Sin foto no se puede registrar.');
         // En la demostración el archivo no se sube: se guarda en memoria para verlo en la galería
-        s.entrega_url = listaFotos(s.entrega_url).concat([d.respaldo_entrega]).join('\n');
-        if (cod === 'RECIBIR'){ a = 'RECIBIDA'; nota = 'Recepción total. Foto: (archivo de ejemplo)'; }
-        else { a = de; mismo = true; nota = 'Foto: (archivo de ejemplo)'; }
+        if (foto) s.entrega_url = listaFotos(s.entrega_url).concat([foto]).join('\n');
+        const fn = foto ? 'Foto: (archivo de ejemplo)' : 'Sin foto';
+        if (cod === 'RECIBIR'){ a = 'RECIBIDA'; nota = 'Recepción total. ' + fn; }
+        else { a = de; mismo = true; nota = fn; }
       }
       else if (cod === 'INMEDIATA'){ a = 'ENTREGA_INMEDIATA'; s.subido_faena = ''; s.subido_por = ''; nota = 'Hay stock: sin aprobaciones. La entrega queda a cargo de ' + (deRol('BODEGA', s.faena).length ? 'bodega.' : 'el comprador (no hay bodega activa en ' + s.faena + ').'); }
-      else if (cod === 'SUBIDO_FAENA'){ a = de; mismo = true; s.subido_faena = ahoraIso(); s.subido_por = yo.nombre; nota = 'El material va a faena; falta que el supervisor registre la recepción con foto.'; }
+      else if (cod === 'SUBIDO_FAENA'){ a = de; mismo = true; s.subido_faena = ahoraIso(); s.subido_por = yo.nombre; nota = 'El material va a faena; falta que el supervisor registre la recepción.'; }
       else if (cod === 'DEVOLVER_STOCK'){ a = 'COTIZANDO'; if (s.tipo === 'BODEGA'){ s.tipo = 'COMPRA'; nota = 'Retiro de bodega antiguo convertido en Compra MITT.'; } s.subido_faena = ''; s.subido_por = ''; }
       else if (cod === 'OBSERVAR'){ s.estado_previo = de; a = 'OBSERVADA'; }
       else if (cod === 'REENVIAR'){ a = s.estado_previo || (s.tipo === 'BODEGA' ? 'ENTREGA_INMEDIATA' : 'COTIZANDO'); s.estado_previo = ''; }
