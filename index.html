@@ -66,9 +66,9 @@ textarea{min-height:84px;resize:vertical}
 .barra{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--barra);color:var(--sobre-barra)}
 .barra-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 16px}
 .marca{display:flex;align-items:center;gap:10px;font-weight:600;white-space:nowrap}
-.barra select{width:auto;margin:0 0 0 auto;padding:7px 10px;background:transparent;color:var(--sobre-barra);border-color:#3D4E57;max-width:44vw}
+.barra select{width:auto;flex:0 1 auto;min-width:0;margin:0 0 0 auto;padding:7px 10px;background:transparent;color:var(--sobre-barra);border-color:#3D4E57;max-width:44vw;text-overflow:ellipsis}
 .barra select option{color:#1C2930}
-.usuario{background:none;border:0;color:var(--barra2);font-size:14px;white-space:nowrap;padding:6px 0}
+.usuario{background:none;border:0;color:var(--barra2);font-size:14px;white-space:nowrap;padding:6px 0;flex:0 1 auto;min-width:0;max-width:34vw;overflow:hidden;text-overflow:ellipsis}
 .usuario b{color:var(--sobre-barra);font-weight:600}
 .pestanas{max-width:1100px;margin:0 auto;display:flex;gap:2px;padding:0 10px;overflow-x:auto}
 .pestanas button{background:none;border:0;border-bottom:4px solid transparent;color:var(--barra2);padding:10px 10px 8px;font-weight:600;white-space:nowrap}
@@ -236,6 +236,27 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--tinta);color:var(--fondo);padding:11px 16px;border-radius:4px;font-weight:500;max-width:min(92vw,520px);display:none}
 #toast.error{background:var(--alerta);color:#fff}
+
+/* Lista de compras (pestaña Compras, rol COMPRADOR) */
+.cmp-met .num{font-size:34px}
+.cmp-sec{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.03em;margin:22px 0 8px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.cmp-sec small{font-family:'Barlow',sans-serif;font-size:14px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--tinta2)}
+.cmp{position:relative;background:var(--sup);border:1px solid var(--linea);padding:12px 14px 13px 22px;margin-bottom:10px}
+.cmp::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--linea)}
+.cmp.porvencer::before{background:var(--senal)}
+.cmp.vencida::before{width:10px;background:repeating-linear-gradient(-45deg,var(--senal) 0 6px,#1C2930 6px 12px)}
+.cmp-items{list-style:none;margin:10px 0 12px;padding:0;border-top:1px solid var(--linea)}
+.cmp-items li{border-bottom:1px solid var(--linea)}
+.cmp-items label{display:flex;gap:12px;align-items:flex-start;margin:0;padding:9px 2px;font-weight:400;cursor:pointer}
+.cmp-items input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--ok)}
+.cmp-items .cant{font-weight:700;white-space:nowrap;min-width:64px}
+.cmp-items .ref{margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-weight:600;color:var(--tinta2);white-space:nowrap}
+.cmp-items label.ok{color:var(--tinta2)}
+.cmp-items label.ok .txt{text-decoration:line-through}
+.cmp-avance{font-size:14px;color:var(--tinta2)}
+.cmp-avance b{color:var(--ok)}
+.cmp-prov{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.cmp-prov h3{margin:0;font-size:17px}
 
 @media (max-width:640px){
   .marca span:last-child{display:none}
@@ -668,6 +689,7 @@ function pintarPestanas(){
   const c = S.conteos || {};
   let tabs = [
     ['pendientes', 'Mis pendientes', c.pendientes, true],
+    ...(esComprador() ? [['compras', 'Compras', c.compras, true]] : []),
     ['mias', tieneEquipo() ? 'Mi contrato' : 'Mis solicitudes', c.mias, false],
     ['todas', 'Todas', c.vencidas, 'v'],
     ['historial', 'Historial', null, false],
@@ -707,7 +729,8 @@ function filtrarCache(){
   S.conteos = {
     pendientes: abiertas.filter(s => s.meToca).length,
     mias: abiertas.filter(s => s.esMia).length,
-    vencidas: abiertas.filter(s => s.vencida).length
+    vencidas: abiertas.filter(s => s.vencida).length,
+    compras: abiertas.filter(s => EST_COMPRA.indexOf(s.estado) >= 0).length
   };
   let items = abiertas;
   if (S.vista === 'pendientes') items = abiertas.filter(s => s.meToca || (pendientesEnBloques() && s.esMia));
@@ -748,6 +771,7 @@ function actualizarEnCache(s){
 }
 function pintarLista(){
   const v = $('#vista'); if (!v || !S.cache || S.vista === 'panel' || S.vista === 'historial') return;
+  if (S.vista === 'compras') return pintarCompras();
   let herr = $('#herr', v);
   if (!herr || herr.dataset.v !== S.vista){
     v.innerHTML = `
@@ -883,6 +907,297 @@ function filaHTML(s){
     ${rielHTML(s)}
     <div class="dias">${dias}</div>
   </button>`;
+}
+
+/* ---------- Lista de compras (rol COMPRADOR) ---------- */
+// Junta todo lo que está En compra (ya aprobado: APROBADA y ENTREGADA son estados antiguos, ver ESTADOS_ANTIGUOS en Código.js).
+// Se arma con la cache de la lista, sin ir a la planilla. La cierra el supervisor al registrar la recepción.
+// Los ticks de "ya lo compré" se guardan en el teléfono del comprador (no en la planilla): sirven de ayuda mientras recorre la tienda.
+const EST_COMPRA = ['EN_COMPRA'];
+const SIN_PROV = 'Sin proveedor definido';
+const esComprador = () => { const r = (S.boot && S.boot.usuario && S.boot.usuario.roles) || []; return r.indexOf('COMPRADOR') >= 0 || r.indexOf('ADMIN') >= 0; };
+const marcados = id => { try { return JSON.parse(almacen.get('abs_cmp_' + id) || '[]'); } catch(e){ return []; } };
+function marcarItem(id, i, on){ const m = marcados(id).filter(x => x !== i); if (on) m.push(i); almacen.set('abs_cmp_' + id, JSON.stringify(m)); }
+const linkCotizacion = s => [s.cotizacion_archivo, s.cotizacion_url].find(u => u && /^https?:/i.test(u)) || '';
+const ordenProv = (a, b) => (a === SIN_PROV) - (b === SIN_PROV) || a.localeCompare(b);
+
+function comprasAbiertas(){
+  let l = S.cache.items.filter(s => EST_COMPRA.indexOf(s.estado) >= 0);
+  if (S.faena) l = l.filter(s => s.faena === S.faena);
+  const PRIO = { 'Crítica': 0, 'Alta': 1 }, pr = s => PRIO.hasOwnProperty(s.prioridad) ? PRIO[s.prioridad] : 2;
+  const nec = s => s.necesita_para ? Date.parse(s.necesita_para) : 9e15;
+  return l.sort((a, b) => (b.vencida - a.vencida) || (pr(a) - pr(b)) || (nec(a) - nec(b)));
+}
+const todoComprado = s => { const n = (s.items || []).length; return n > 0 && marcados(s.id).length >= n; };
+
+function textoListaCompras(l){
+  const porProv = {};
+  l.forEach(s => (s.items || []).forEach((it, i) => {
+    if (marcados(s.id).indexOf(i) >= 0) return;
+    const p = s.proveedor || SIN_PROV;
+    (porProv[p] = porProv[p] || []).push(`▫️ ${it.cantidad} ${it.unidad} ${it.descripcion} (${s.id})`);
+  }));
+  const fecha = new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+  return `*Lista de compras${S.faena ? ' ' + S.faena : ''}* (${fecha})\n` +
+    Object.keys(porProv).sort(ordenProv).map(p => `\n*${p}*\n` + porProv[p].join('\n')).join('\n');
+}
+
+function itemHTML(s, it, i, conRef){
+  const ok = marcados(s.id).indexOf(i) >= 0;
+  return `<li><label class="${ok ? 'ok' : ''}"><input type="checkbox" data-mid="${esc(s.id)}" data-mi="${i}" ${ok ? 'checked' : ''}>
+    <span class="cant">${esc(it.cantidad)} ${esc(it.unidad)}</span><span class="txt">${esc(it.descripcion)}</span>
+    ${conRef ? `<span class="ref">${esc(s.id)}</span>` : ''}</label></li>`;
+}
+
+function tarjetaCompraHTML(s){
+  const its = s.items || [], m = marcados(s.id).length;
+  const datos = [s.proveedor ? `<b>${esc(s.proveedor)}</b>` : 'Sin proveedor', s.monto ? fmtCLP(s.monto) : '',
+    s.necesita_para ? 'se necesita para el ' + esc(fmtDia(s.necesita_para)) : '', 'pidió ' + esc(s.solicitante)].filter(Boolean).join(' · ');
+  const lc = linkCotizacion(s);
+  const cot = lc ? `<a class="btn chico" href="${esc(lc)}" target="_blank" rel="noopener">Ver cotización</a>` : '';
+  // Si no encuentra lo pedido, el comprador propone una alternativa (acción PROPONER del servidor)
+  const prop = (s.acciones || []).some(a => a.codigo === 'PROPONER') ? `<button class="btn chico" data-proponer="${esc(s.id)}">Proponer alternativa</button>` : '';
+  return `<article class="cmp ${s.vencida ? 'vencida' : s.por_vencer ? 'porvencer' : ''}">
+    <div class="meta">${chipsHTML(s)}</div>
+    <div class="titulo">${esc(s.titulo)}${s.area ? ` <span class="estado-linea">(${esc(s.area)})</span>` : ''}</div>
+    <div class="estado-linea">${datos}</div>
+    ${its.length ? `<ul class="cmp-items">${its.map((it, i) => itemHTML(s, it, i, false)).join('')}</ul>` : '<p class="estado-linea">Sin ítems anotados: revisa la ficha o la cotización.</p>'}
+    <div class="botones" style="align-items:center">
+      <button class="btn primario chico" data-ficha="${esc(s.id)}">Ver ficha</button>${prop}${cot}
+      <span class="cmp-avance" style="margin-left:auto">${todoComprado(s) ? '<b>Todo comprado</b>' : `${m} de ${its.length} ítems`}</span>
+    </div>
+  </article>`;
+}
+
+function pintarCompras(){
+  const v = $('#vista'); if (!v || !S.cache) return;
+  filtrarCache(); pintarPestanas();
+  const l = comprasAbiertas();
+  const nItems = l.reduce((a, s) => a + (s.items || []).length, 0);
+  const listos = l.reduce((a, s) => a + Math.min(marcados(s.id).length, (s.items || []).length), 0);
+  const total = l.reduce((a, s) => a + (Number(s.monto) || 0), 0);
+  const venc = l.filter(s => s.vencida).length;
+  const modo = almacen.get('abs_cmp_modo') === 'proveedor' ? 'proveedor' : 'solicitud';
+  let cuerpo;
+  if (!l.length) cuerpo = '<div class="vacio"><b>No hay compras pendientes.</b>Cuando una solicitud quede aprobada (En compra), aparece aquí con sus ítems.</div>';
+  else if (modo === 'proveedor'){
+    const g = {};
+    l.forEach(s => (g[s.proveedor || SIN_PROV] = g[s.proveedor || SIN_PROV] || []).push(s));
+    cuerpo = Object.keys(g).sort(ordenProv).map(p => {
+      const ss = g[p], n = ss.reduce((a, s) => a + (s.items || []).length, 0);
+      return `<section class="bloque"><div class="cmp-prov"><h3>${esc(p)}</h3><span class="cmp-avance">${plural(n, 'ítem', 'ítems')} · ${plural(ss.length, 'solicitud', 'solicitudes')}</span></div>
+        <ul class="cmp-items">${ss.map(s => (s.items || []).map((it, i) => itemHTML(s, it, i, true)).join('')).join('')}</ul></section>`;
+    }).join('');
+  } else {
+    // Dos bloques: lo que falta comprar y lo ya comprado (todos los ítems marcados), que espera la recepción del supervisor
+    const pc = l.filter(s => !todoComprado(s)), ya = l.filter(todoComprado);
+    cuerpo = (pc.length ? `<h2 class="cmp-sec">Por comprar <small>${plural(pc.length, 'solicitud aprobada', 'solicitudes aprobadas')}</small></h2>${pc.map(tarjetaCompraHTML).join('')}` : '') +
+             (ya.length ? `<h2 class="cmp-sec">Ya comprado <small>${plural(ya.length, 'solicitud', 'solicitudes')} · falta que el supervisor registre la recepción</small></h2>${ya.map(tarjetaCompraHTML).join('')}` : '');
+  }
+  v.innerHTML = `
+    <div class="metricas cmp-met">
+      <div><span class="num">${l.length}</span>solicitudes por comprar</div>
+      <div><span class="num">${listos}/${nItems}</span>ítems ya comprados</div>
+      <div><span class="num">${total ? fmtCLP(total) : '$0'}</span>cotizado pendiente (neto)</div>
+      <div class="${venc ? 'mal' : ''}"><span class="num">${venc}</span>fuera de plazo</div>
+    </div>
+    <div class="herramientas" style="margin-top:14px">
+      <div class="segmento" role="radiogroup" aria-label="Agrupar" style="margin:0;flex:1;min-width:230px;max-width:360px">
+        <label><input type="radio" name="cmpModo" value="solicitud" ${modo === 'solicitud' ? 'checked' : ''}><span>Por solicitud</span></label>
+        <label><input type="radio" name="cmpModo" value="proveedor" ${modo === 'proveedor' ? 'checked' : ''}><span>Por proveedor</span></label>
+      </div>
+      ${l.length ? `<a class="btn chico" href="https://wa.me/?text=${encodeURIComponent(textoListaCompras(l))}" target="_blank" rel="noopener">Enviar lista por WhatsApp</a>
+      <button class="btn chico" id="btnImprimir" type="button">Imprimir / PDF</button>` : ''}
+      <button class="btn chico" id="btnRecargar">Actualizar</button>
+    </div>
+    <div id="cmpRes">${cuerpo}</div>`;
+  $$('[name=cmpModo]', v).forEach(r => r.addEventListener('change', () => { almacen.set('abs_cmp_modo', r.value); pintarCompras(); }));
+  $('#btnRecargar', v).addEventListener('click', () => cargar(true));
+  const bi = $('#btnImprimir', v); if (bi) bi.addEventListener('click', imprimirCompras);
+  const res = $('#cmpRes', v);
+  res.addEventListener('change', e => { const c = e.target.closest('[data-mid]'); if (c){ marcarItem(c.dataset.mid, +c.dataset.mi, c.checked); pintarCompras(); } });
+  res.addEventListener('click', async e => {
+    const b = e.target.closest('[data-proponer],[data-ficha]'); if (!b) return;
+    if (b.dataset.ficha) return abrir(b.dataset.ficha);
+    // Proponer alternativa pide ítems, monto y comentario: se abre la ficha con el formulario listo
+    await abrir(b.dataset.proponer);
+    const a = S.detalle && (S.detalle.acciones || []).find(x => x.codigo === 'PROPONER');
+    if (a) abrirAccion(S.detalle, a);
+  });
+  marcarActualizando(!!enCurso);
+}
+
+// Hoja tamaño carta para imprimir o guardar como PDF: solo lo que falta comprar (sin los ítems ya marcados).
+// En pantalla se ve como una hoja centrada (vista previa) con una barra para volver a imprimir o cerrar.
+function docListaCompras(){
+  const ahora = new Date();
+  const l = comprasAbiertas().map(s => {
+    const m = marcados(s.id);
+    return { s, pend: (s.items || []).map((it, i) => ({ it, i })).filter(x => m.indexOf(x.i) < 0) };
+  }).filter(x => x.pend.length);
+  const f = S.faena && S.boot.faenas.find(x => x.codigo === S.faena);
+  const faena = S.faena ? (f ? f.codigo + ' ' + f.nombre : S.faena) : 'Todas mis faenas';
+  const sinPunto = t => t.replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+  const fecha = sinPunto(ahora.toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }));
+  const hora = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  const p2 = n => String(n).padStart(2, '0');
+  const iso = ahora.getFullYear() + '-' + p2(ahora.getMonth() + 1) + '-' + p2(ahora.getDate());
+  const titulo = 'Lista de compras ' + (S.faena || 'Todas') + ' ' + iso;
+  const cssTxt = t => String(t).replace(/["\\\n]/g, ' ');
+  const etiquetas = s => (s.prioridad === 'Crítica' ? '<span class="c crit">Crítica</span>' : s.prioridad === 'Alta' ? '<span class="c alta">Alta</span>' : '') +
+    (s.vencida ? '<span class="c venc">Vencida</span>' : '');
+  const nItems = l.reduce((a, x) => a + x.pend.length, 0);
+  const total = l.reduce((a, x) => a + (Number(x.s.monto) || 0), 0);
+  const venc = l.filter(x => x.s.vencida).length;
+  const g = {};
+  l.forEach(x => (g[x.s.proveedor || SIN_PROV] = g[x.s.proveedor || SIN_PROV] || []).push(x));
+  const bloques = Object.keys(g).sort(ordenProv).map(p => {
+    const xs = g[p], n = xs.reduce((a, x) => a + x.pend.length, 0);
+    return `<section class="prov"><div class="ph"><h2>${esc(p)}</h2><span>${plural(n, 'ítem', 'ítems')} · ${plural(xs.length, 'solicitud', 'solicitudes')}</span></div>
+      <table>${xs.map(x => x.pend.map(({ it }) => `<tr><td style="width:7mm"><span class="box"></span></td>
+        <td class="cant" style="width:22mm">${esc(it.cantidad)} ${esc(it.unidad)}</td><td>${esc(it.descripcion)}</td>
+        <td class="id" style="width:24mm">${esc(x.s.id)}</td><td style="width:30mm">${etiquetas(x.s)}</td></tr>`).join('')).join('')}</table>
+      <div class="notas">Precio / boleta: ____________________</div></section>`;
+  }).join('');
+  const resumen = `<h3>Resumen por solicitud</h3><table class="res"><thead><tr><th>ID</th><th>Título</th><th>Proveedor</th><th class="num">Monto</th><th>Se necesita para</th><th>Etiquetas</th></tr></thead>
+    <tbody>${l.map(({ s }) => `<tr><td class="id">${esc(s.id)}</td><td>${esc(s.titulo)}</td><td>${esc(s.proveedor || '—')}</td>
+      <td class="num">${s.monto ? esc(fmtCLP(s.monto)) : '—'}</td><td>${s.necesita_para ? esc(fmtDia(s.necesita_para)) : '—'}</td><td>${etiquetas(s)}</td></tr>`).join('')}</tbody></table>`;
+  // Celular: la hoja se dibuja a 860 px y se achica al ancho de la pantalla (como un PDF). La escala va explícita porque
+  // en una ventana escrita con document.write el navegador no la calcula bien. La barra se agranda en la misma proporción.
+  const escala = Math.min(1, (TACTIL && window.innerWidth) ? window.innerWidth / 860 : 1);
+  const k = Math.min(2, 1 / escala).toFixed(2);
+  const css = `@page{size:letter;margin:12mm 13mm 14mm;@bottom-left{content:"MITT SpA · Abastecimiento · Lista generada el ${cssTxt(fecha + ' ' + hora)}";font:7.5pt Barlow,sans-serif;color:#55656E}@bottom-right{content:"Página " counter(page) " de " counter(pages);font:7.5pt Barlow,sans-serif;color:#55656E}}
+*{box-sizing:border-box}body{margin:0;font:9.5pt/1.35 Barlow,sans-serif;color:#1C2930;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cab{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:4px solid #F2B300;padding-bottom:6px}
+.placa{background:#F2B300;font:700 13pt 'Barlow Condensed',sans-serif;padding:0 6px;border-radius:2px}
+h1{font:700 26pt/1 'Barlow Condensed',sans-serif;margin:6px 0 0}
+.dat{text-align:right;font-size:9pt;color:#55656E}.dat b{color:#1C2930}
+.met{display:flex;border:1px solid #C4CCC8;margin:5mm 0}
+.met div{flex:1;padding:6px 10px;border-right:1px solid #C4CCC8;font-size:8.5pt;color:#55656E}.met div:last-child{border:0}
+.met b{display:block;font:700 18pt/1 'Barlow Condensed',sans-serif;color:#1C2930}.met .mal b{color:#B23F0D}
+.prov{margin-bottom:5mm;page-break-inside:avoid;break-inside:avoid}
+.ph{display:flex;justify-content:space-between;align-items:baseline;background:#1C2930;color:#EEF1EF;padding:4px 9px;page-break-after:avoid;break-after:avoid}
+tr{page-break-inside:avoid;break-inside:avoid}
+.prov.largo{page-break-inside:auto;break-inside:auto}
+.ph h2{font:700 13pt 'Barlow Condensed',sans-serif;margin:0;text-transform:uppercase;letter-spacing:.03em}.ph span{font-size:8.5pt;color:#9FB0B8}
+table{width:100%;border-collapse:collapse}
+td{padding:6px 5px;border-bottom:1px solid #C4CCC8;vertical-align:middle}
+.box{display:block;width:4.6mm;height:4.6mm;border:1.4px solid #1C2930;border-radius:1px}
+.cant{font-weight:700;white-space:nowrap}.id{font:700 10pt 'Barlow Condensed',sans-serif;color:#55656E;white-space:nowrap}.num{text-align:right}
+.c{display:inline-block;font-size:7.5pt;font-weight:600;padding:0 4px;border:1px solid;border-radius:2px;margin-right:3px}
+.crit{background:#B23F0D;border-color:#B23F0D;color:#fff}.alta{color:#B23F0D}.venc{background:#F2B300;border-color:#F2B300}
+.notas{font-size:8.5pt;color:#55656E;padding:5px 5px 0}
+h3{font:700 12pt 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.03em;margin:6mm 0 2mm}
+.res th{text-align:left;font-size:8pt;color:#55656E;font-weight:600;border-bottom:1.5px solid #1C2930;padding:3px 5px}
+.res th.num{text-align:right}
+.barra{display:none}
+@media screen{
+  :root{--k:${k};--bar:calc(56px * var(--k))}
+  html{zoom:var(--z,1)}
+  body{background:#E5E8E6;padding-top:var(--bar)}
+  .hoja{width:215.9mm;min-height:279.4mm;margin:16px auto;padding:12mm 13mm 14mm;background:#fff;box-shadow:0 2px 14px rgba(28,41,48,.18)}
+  .barra{display:flex;position:fixed;top:0;left:0;right:0;z-index:2;height:var(--bar);align-items:center;gap:calc(10px * var(--k));padding:0 calc(16px * var(--k));background:#1C2930;color:#EEF1EF}
+  .barra b{font:700 calc(20px * var(--k)) 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.03em;margin-right:auto;white-space:nowrap;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .barra button{font:600 calc(15px * var(--k)) Barlow,sans-serif;min-height:calc(38px * var(--k));padding:0 calc(14px * var(--k));border:1px solid #3D4E57;border-radius:calc(4px * var(--k));background:transparent;color:#EEF1EF;cursor:pointer;white-space:nowrap;flex:none}
+  .barra button.primario{background:#F2B300;border-color:#F2B300;color:#1C2930}
+}
+@media print{.hoja{width:auto;min-height:0;padding:0;margin:0;box-shadow:none}}`;
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=860, initial-scale=${escala.toFixed(4)}"><title>${esc(titulo)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>${css}</style></head><body>
+<div class="barra"><b>Lista de compras</b><button type="button" class="primario" id="lcImprimir">Imprimir / Guardar PDF</button><button type="button" id="lcCerrar">Cerrar</button></div>
+<div class="hoja">
+<header class="cab"><div><span class="placa">MITT</span> Abastecimiento<h1>Lista de compras</h1></div>
+  <div class="dat">Faena: <b>${esc(faena)}</b><br>Comprador: <b>${esc(S.boot.usuario.nombre)}</b><br>${esc(fecha)}</div></header>
+<div class="met"><div><b>${l.length}</b>solicitudes</div><div><b>${nItems}</b>ítems por comprar</div>
+  <div><b>${esc(fmtCLP(total) || '$0')}</b>cotizado neto</div><div class="${venc ? 'mal' : ''}"><b>${venc}</b>fuera de plazo</div></div>
+${bloques}${resumen}
+</div>
+</body></html>`;
+  return { html, titulo, vacia: !l.length };
+}
+
+// Espera la hoja y las fuentes (máximo 3 s) y llama a print(). Devuelve false si el navegador no dejó imprimir.
+function imprimirVentana(w, d, alTerminar){
+  return new Promise(res => {
+    let hecho = false;
+    const go = () => {
+      if (hecho) return; hecho = true;
+      const fuentes = d.fonts && d.fonts.ready ? d.fonts.ready.catch(() => {}) : Promise.resolve();
+      Promise.race([fuentes, new Promise(r => setTimeout(r, 3000))]).then(() => setTimeout(() => {
+        try { w.focus(); w.print(); res(true); } catch(e){ res(false); }
+        if (alTerminar) alTerminar();
+      }, 120));
+    };
+    if (d.readyState === 'complete') go(); else { w.addEventListener('load', go, { once: true }); setTimeout(go, 5000); }
+  });
+}
+
+// Botones de la barra de la vista previa ("Imprimir / Guardar PDF" y "Cerrar"). Se conectan desde aquí para no depender
+// de que la ventana nueva pueda correr scripts propios.
+function conectarBarraImpresion(w, d, cerrar){
+  // Un bloque de proveedor más alto que una hoja se parte donde cae, en vez de saltar entero a la hoja siguiente.
+  // Se compara alto/ancho con el área útil de la hoja carta (253,4 x 189,9 mm), que no cambia con el zoom. Solo se mide
+  // con el estilo de pantalla (la .hoja tiene el ancho de la carta); con el de impresión el ancho cambia y la medida no sirve.
+  const marcarLargos = () => {
+    try { if (!w.matchMedia('screen').matches) return; } catch(e){}
+    $$('.prov', d).forEach(p => p.classList.toggle('largo', p.offsetHeight / (p.offsetWidth || 1) > 253.4 / 189.9));
+  };
+  marcarLargos(); w.addEventListener('beforeprint', marcarLargos);
+  if (d.fonts && d.fonts.ready) d.fonts.ready.then(marcarLargos, () => {}); // con las fuentes cargadas cambia el alto de las filas
+  const bi = d.getElementById('lcImprimir'), bc = d.getElementById('lcCerrar');
+  if (bi) bi.addEventListener('click', () => { try { w.focus(); w.print(); } catch(e){ aviso('No se pudo abrir el diálogo de impresión', true); } });
+  if (bc) bc.addEventListener('click', cerrar);
+  d.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+}
+
+async function imprimirCompras(){
+  const { html, titulo, vacia } = docListaCompras();
+  if (vacia){ aviso('No quedan ítems por comprar: todos están marcados como comprados.'); return; }
+  let w = null;
+  try { w = window.open('', '_blank'); } catch(e){ w = null; }
+  if (w){
+    try {
+      const d = w.document; d.open(); d.write(html); d.close();
+      conectarBarraImpresion(w, d, () => { try { w.close(); } catch(e){} });
+      if (await imprimirVentana(w, d)) return;
+    } catch(e){}
+    try { w.close(); } catch(e){}
+  }
+  // Respaldo: ventana emergente bloqueada. La hoja se muestra encima de la app, en un iframe a pantalla completa,
+  // y se imprime desde ahí. "Cerrar" quita el iframe.
+  const viejo = $('#cmpPrint'); if (viejo) viejo.remove();
+  const tituloPagina = document.title, overflow = document.body.style.overflow;
+  let fr = null, ajustar = null;
+  const cerrar = () => {
+    if (fr) fr.remove(); fr = null;
+    if (ajustar) window.removeEventListener('resize', ajustar);
+    document.title = tituloPagina; document.body.style.overflow = overflow;
+  };
+  try {
+    fr = document.createElement('iframe');
+    fr.id = 'cmpPrint'; fr.title = titulo;
+    fr.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:50;background:#E5E8E6';
+    const ok = await new Promise(res => {
+      fr.addEventListener('load', () => {
+        try {
+          const cw = fr.contentWindow, cd = fr.contentDocument;
+          // El meta viewport no aplica dentro de un iframe: en pantallas angostas se achica la hoja carta para que quepa entera
+          ajustar = () => { if (fr) cd.documentElement.style.setProperty('--z', Math.min(1, fr.clientWidth / 860).toFixed(3)); };
+          ajustar(); window.addEventListener('resize', ajustar);
+          conectarBarraImpresion(cw, cd, cerrar);
+          document.title = titulo; // Chrome usa el título de la página como nombre del PDF
+          imprimirVentana(cw, cd).then(res);
+        } catch(e){ res(false); }
+      }, { once: true });
+      fr.srcdoc = html;
+      document.body.appendChild(fr); document.body.style.overflow = 'hidden';
+    });
+    if (ok) return;
+  } catch(e){}
+  cerrar();
+  aviso('Permite ventanas emergentes para imprimir la lista', true);
 }
 
 /* ---------- Hoja lateral ---------- */
@@ -1713,6 +2028,8 @@ const DEMO = (() => {
     base({ id:'DMH-0013', creada:hace(0.3), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'COMPRA', area:'Baño varones Finning', titulo:'Monomando lavatorio y tornillos', items:[{cantidad:1,unidad:'un',descripcion:'Llave monomando lavatorio'},{cantidad:200,unidad:'un',descripcion:'Tornillo madera 1 5/8"'}], motivo:'Llave actual en mal estado.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'OBSERVADA', estado_previo:'COTIZANDO', estado_desde:hace(0.2) }),
     base({ id:'DMH-0015', creada:hace(1), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'EMERGENTE', titulo:'Lev. 49: Cambio de brazo hidráulico puerta taller', items:[{cantidad:1,unidad:'un',descripcion:'Brazo hidráulico 80 kg',precio:65600}], motivo:'', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'EN_COMPRA', estado_desde:hace(1), monto:65600, n_emergente:'LEV-49', respaldo_url:'#', aprobado_por:'Supervisor DMH' }),
     base({ id:'DMH-0010', creada:hace(6), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'COTIZACION', titulo:'Cambio de luminarias taller de soldadura', items:[{cantidad:12,unidad:'un',descripcion:'Foco LED 150 W'},{cantidad:4,unidad:'caja',descripcion:'Terminales de compresión 10 mm'}], solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'EN_COMPRA', estado_desde:hace(6), n_cotizacion:'233190', respaldo_url:'#', aprobado_por:'Administrador (ejemplo)', entrega_url:FOTO_EJ }),
+    base({ id:'DMH-0016', creada:hace(4), faena:'DMH', contrato:'FIN-PALA-DMH', tipo:'COMPRA', prioridad:'Alta', area:'Taller de soldadura', titulo:'Discos de corte y escobilla copa', items:[{cantidad:25,unidad:'un',descripcion:'Disco de corte 4 1/2" acero inoxidable'},{cantidad:2,unidad:'un',descripcion:'Escobilla copa trenzada M14'},{cantidad:1,unidad:'caja',descripcion:'Electrodo 7018 3/32"'}], motivo:'Se acabaron los discos; el taller corta con discos gastados.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'EN_COMPRA', estado_desde:hace(1), necesita_para:new Date(Date.now() + 864e5).toISOString(), monto:96400, proveedor:'Ferretería industrial Calama', cotizacion_url:'https://drive.google.com/', validado_por:'Validador DMH', comprado_por:'Expeditor DMH', en_compra_desde:hace(1) }),
+    base({ id:'CHUQUI-0003', creada:hace(7), faena:'CHUQUI', contrato:'MITT', tipo:'COMPRA', prioridad:'Crítica', area:'Camioneta 12', titulo:'Extintor y botiquín camioneta 12', items:[{cantidad:1,unidad:'un',descripcion:'Extintor PQS 6 kg con soporte'},{cantidad:1,unidad:'un',descripcion:'Botiquín vehicular normado'}], motivo:'Sin extintor ni botiquín la camioneta no puede entrar a la mina.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'EN_COMPRA', estado_desde:hace(5), monto:41800, proveedor:'Sodimac Calama', validado_por:'Validador DMH', comprado_por:'Expeditor Chuqui', en_compra_desde:hace(5) }),
     base({ id:'CHUQUI-0001', creada:hace(3), faena:'CHUQUI', contrato:'MITT', tipo:'COMPRA', titulo:'Huincha aisladora verde, color del mes', items:[{cantidad:6,unidad:'rollo',descripcion:'Huincha aisladora verde'}], motivo:'Marcaje de herramientas del mes.', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'ENTREGA_INMEDIATA', estado_desde:hace(1), subido_faena:hace(0.2), subido_por:'Expeditor Chuqui' }),
     base({ id:'CHUQUI-0002', creada:hace(1), faena:'CHUQUI', contrato:'MITT', tipo:'COMPRA', titulo:'Guantes de cabritilla', items:[{cantidad:10,unidad:'par',descripcion:'Guante cabritilla talla 9'}], motivo:'', solicitante_id:'11111111-1', solicitante:'Administrador (ejemplo)', estado:'ENTREGA_INMEDIATA', estado_desde:hace(0.5) }),
     base({ id:'DMH-0003', creada:hace(21), faena:'DMH', contrato:'FIN-CAEX-DMH', tipo:'BODEGA', titulo:'Pintacal para demarcación', items:[{cantidad:6,unidad:'saco',descripcion:'Pintacal'}], motivo:'Demarcación de áreas de la losa.', solicitante_id:'U7', solicitante:'Supervisor DMH', estado:'RECIBIDA', estado_desde:hace(13), cerrada:hace(13), recibido_por:'Supervisor DMH' }),
@@ -1743,9 +2060,15 @@ const DEMO = (() => {
     { fecha:hace(6), id:'DMH-0002', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'EN_COMPRA', comentario:'' },
     { fecha:hace(3), id:'DMH-0002', usuario:'Administrador (ejemplo)', accion:'Recibir parcial', de:'EN_COMPRA', a:'EN_COMPRA', comentario:'Pendiente: Faltan 2 escobillones. | Foto: ' + FOTO_EJ },
     { fecha:hace(2), id:'DMH-0002', usuario:'Administrador (ejemplo)', accion:'Recibir conforme (total)', de:'EN_COMPRA', a:'RECIBIDA', comentario:'Recepción total. Foto: ' + FOTO_EJ },
-    { fecha:hace(20), id:'DMH-0001', usuario:'Supervisor DMH', accion:'Anular solicitud', de:'COTIZANDO', a:'ANULADA', comentario:'Se consiguió prestado.' }
+    { fecha:hace(20), id:'DMH-0001', usuario:'Supervisor DMH', accion:'Anular solicitud', de:'COTIZANDO', a:'ANULADA', comentario:'Se consiguió prestado.' },
+    { fecha:hace(4), id:'DMH-0016', usuario:'Supervisor DMH', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
+    { fecha:hace(2), id:'DMH-0016', usuario:'Expeditor DMH', accion:'Enviar a aprobación', de:'COTIZANDO', a:'POR_VALIDAR', comentario:'' },
+    { fecha:hace(1), id:'DMH-0016', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'EN_COMPRA', comentario:'' },
+    { fecha:hace(7), id:'CHUQUI-0003', usuario:'Administrador (ejemplo)', accion:'Creó la solicitud', de:'', a:'COTIZANDO', comentario:'' },
+    { fecha:hace(6), id:'CHUQUI-0003', usuario:'Expeditor Chuqui', accion:'Enviar a aprobación', de:'COTIZANDO', a:'POR_VALIDAR', comentario:'' },
+    { fecha:hace(5), id:'CHUQUI-0003', usuario:'Validador DMH', accion:'Aprobar compra', de:'POR_VALIDAR', a:'EN_COMPRA', comentario:'' }
   ];
-  let seq = { DMH:15, CHUQUI:2, DRT:0, DGM:0 };
+  let seq = { DMH:16, CHUQUI:3, DRT:0, DGM:0 };
   const listaFotos = v => String(v || '').split(/\s*\n\s*/).filter(Boolean);
   const deRol = (rol, faena) => US.filter(u => u.roles.includes(rol) && (u.faenas.includes('TODAS') || u.faenas.includes(faena)));
   const esDelEquipo = (u, s) => u.roles.includes('SOLICITANTE') && (u.contratos || []).includes(s.contrato);
