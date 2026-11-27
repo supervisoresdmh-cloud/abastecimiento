@@ -1006,7 +1006,7 @@ function pintarCompras(){
         <label><input type="radio" name="cmpModo" value="solicitud" ${modo === 'solicitud' ? 'checked' : ''}><span>Por solicitud</span></label>
         <label><input type="radio" name="cmpModo" value="proveedor" ${modo === 'proveedor' ? 'checked' : ''}><span>Por proveedor</span></label>
       </div>
-      ${l.length ? `<a class="btn chico" href="https://wa.me/?text=${encodeURIComponent(textoListaCompras(l))}" target="_blank" rel="noopener">Enviar lista por WhatsApp</a>
+      ${l.length ? `<a class="btn chico" href="${WA_ENVIAR}${encodeURIComponent(textoListaCompras(l))}" target="_blank" rel="noopener">Enviar lista por WhatsApp</a>
       <button class="btn chico" id="btnImprimir" type="button">Imprimir / PDF</button>` : ''}
       <button class="btn chico" id="btnRecargar">Actualizar</button>
     </div>
@@ -1221,6 +1221,8 @@ async function abrir(id){
   try { S.detalle = await llamar('obtener', S.token, id); pintarDetalle(S.detalle); } catch(e){ cerrarHoja(); }
 }
 
+// Compartir por WhatsApp: api.whatsapp.com/send y no wa.me, porque la redirección de wa.me daña los emojis (salen como un rombo con ?)
+const WA_ENVIAR = 'https://api.whatsapp.com/send?text=';
 function waLink(s){
   const base = S.boot.urlApp || location.href.split('?')[0];
   // Recibida conforme: en vez de "Estado: ..." va el check y quién recibió (\u2705 en vez del emoji, para que Apps Script no lo rompa)
@@ -1228,7 +1230,7 @@ function waLink(s){
     ? '\u2705*Recibido Conforme*' + (s.recibido_por ? '\nRecibió: ' + s.recibido_por : '')
     : 'Estado: ' + nomEstado(s.estado);
   const t = `*${s.id}* ${s.titulo}\n${estado}${s.responsable ? '\nPendiente por parte de: ' + s.responsable : ''}\n${base}?id=${encodeURIComponent(s.id)}`;
-  return 'https://wa.me/?text=' + encodeURIComponent(t);
+  return WA_ENVIAR + encodeURIComponent(t);
 }
 
 function galeriaHTML(s){
