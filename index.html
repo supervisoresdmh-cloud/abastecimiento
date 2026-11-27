@@ -1223,7 +1223,11 @@ async function abrir(id){
 
 function waLink(s){
   const base = S.boot.urlApp || location.href.split('?')[0];
-  const t = `*${s.id}* ${s.titulo}\nEstado: ${nomEstado(s.estado)}${s.responsable ? '\nPendiente por parte de: ' + s.responsable : ''}\n${base}?id=${encodeURIComponent(s.id)}`;
+  // Recibida conforme: en vez de "Estado: ..." va el check y quién recibió (\u2705 en vez del emoji, para que Apps Script no lo rompa)
+  const estado = s.estado === 'RECIBIDA'
+    ? '\u2705*Recibido Conforme*' + (s.recibido_por ? '\nRecibió: ' + s.recibido_por : '')
+    : 'Estado: ' + nomEstado(s.estado);
+  const t = `*${s.id}* ${s.titulo}\n${estado}${s.responsable ? '\nPendiente por parte de: ' + s.responsable : ''}\n${base}?id=${encodeURIComponent(s.id)}`;
   return 'https://wa.me/?text=' + encodeURIComponent(t);
 }
 
